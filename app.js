@@ -225,6 +225,7 @@ function loadState() {
         const data = JSON.parse(saved);
         if (data.ingredients) appState.ingredients = data.ingredients;
         if (data.shoppingList) appState.shoppingList = data.shoppingList;
+        if (data.recipes) appState.recipes = data.recipes;
     } catch (err) {
         console.error('Failed to parse saved state', err);
     }
@@ -233,7 +234,8 @@ function loadState() {
 function saveState() {
     const data = {
         ingredients: appState.ingredients,
-        shoppingList: appState.shoppingList
+        shoppingList: appState.shoppingList,
+        recipes: appState.recipes
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
 }
