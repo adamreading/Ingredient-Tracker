@@ -7,6 +7,7 @@ The app stores all data in the browser using **localStorage** so each visitor ke
 
 - Maintain a list of ingredients with current amounts
 - Generate a shopping list from low stock items
+- Look up Asda product options and record orders from the shopping list
 - Import recipes from URLs (supports "application/ld+json" markup)
   - Ingredient quantities in US units are automatically converted to UK units
   - Use the **Import Recipe** form on the Recipes page to paste a URL

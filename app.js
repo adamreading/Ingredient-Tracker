@@ -213,6 +213,8 @@ let appState = {
         }
     ],
     shoppingList: [],
+    shoppingOptions: {},
+    orders: [],
     currentEditingIngredient: null
 };
 
@@ -225,6 +227,8 @@ function loadState() {
         const data = JSON.parse(saved);
         if (data.ingredients) appState.ingredients = data.ingredients;
         if (data.shoppingList) appState.shoppingList = data.shoppingList;
+        if (data.shoppingOptions) appState.shoppingOptions = data.shoppingOptions;
+        if (data.orders) appState.orders = data.orders;
         if (data.recipes) appState.recipes = data.recipes;
     } catch (err) {
         console.error('Failed to parse saved state', err);
@@ -235,6 +239,8 @@ function saveState() {
     const data = {
         ingredients: appState.ingredients,
         shoppingList: appState.shoppingList,
+        shoppingOptions: appState.shoppingOptions,
+        orders: appState.orders,
         recipes: appState.recipes
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
@@ -635,11 +641,13 @@ function addMissingIngredientsToShopping() {
 function initializeShoppingList() {
     const generateBtn = document.getElementById('generateShoppingList');
     const clearBtn = document.getElementById('clearCompleted');
+    const receiveBtn = document.getElementById('receiveDelivered');
     const addBtn = document.getElementById('addManualItem');
     const manualInput = document.getElementById('manualItem');
-    
+
     generateBtn.addEventListener('click', generateShoppingListFromLowStock);
     clearBtn.addEventListener('click', clearCompletedItems);
+    receiveBtn.addEventListener('click', receiveDelivered);
     addBtn.addEventListener('click', addManualItem);
     
     manualInput.addEventListener('keypress', (e) => {
@@ -686,7 +694,7 @@ function addManualItem() {
     saveState();
 }
 
-function renderShoppingList() {
+async function renderShoppingList() {
     const shoppingContainer = document.getElementById('shoppingList');
     
     if (appState.shoppingList.length === 0) {
@@ -694,20 +702,46 @@ function renderShoppingList() {
         return;
     }
     
-    shoppingContainer.innerHTML = appState.shoppingList.map(item => `
-        <div class="shopping-item ${item.completed ? 'completed' : ''}">
-            <input type="checkbox" class="shopping-checkbox" 
-                   ${item.completed ? 'checked' : ''} 
+    let html = '';
+    for (const item of appState.shoppingList) {
+        if (!appState.shoppingOptions[item.name]) {
+            appState.shoppingOptions[item.name] = await fetchAsdaOptions(item.name);
+        }
+        const options = appState.shoppingOptions[item.name] || [];
+        html += `
+        <div class="shopping-item shopping-list-item ${item.completed ? 'completed' : ''}">
+            <input type="checkbox" class="shopping-checkbox" data-item="${item.name}"
+                   ${item.completed ? 'checked' : ''}
                    onchange="toggleShoppingItem(${item.id})">
             <div class="shopping-item-text">
                 <strong>${item.name}</strong>
                 ${item.amount ? `<div class="text-secondary">${item.amount} ${item.unit || ''}</div>` : ''}
             </div>
-            <button class="shopping-item-remove" onclick="removeShoppingItem(${item.id})">
-                ✗
-            </button>
-        </div>
-    `).join('');
+            <button class="shopping-item-remove" onclick="removeShoppingItem(${item.id})">✗</button>
+            <select data-item="${item.name}">
+                ${options.map(o => `<option value="${o.productId}">${o.brand} – £${o.price.toFixed(2)}</option>`).join('')}
+            </select>
+            <input type="number" min="1" value="1" data-qty="${item.name}">
+            <button data-add="${item.name}">Add to basket</button>
+        </div>`;
+    }
+    shoppingContainer.innerHTML = html;
+
+    // attach add-to-basket handlers
+    shoppingContainer.querySelectorAll('[data-add]').forEach(btn => {
+        btn.addEventListener('click', e => {
+            const item = e.target.dataset.add;
+            const select = e.target.previousElementSibling.previousElementSibling;
+            const qtyInput = e.target.previousElementSibling;
+            const id = select.value;
+            const qty = +qtyInput.value;
+            const option = appState.shoppingOptions[item].find(o => o.productId === id);
+            if (option) {
+                appState.orders.push({ item, ...option, qty });
+                saveState();
+            }
+        });
+    });
 }
 
 function toggleShoppingItem(id) {
@@ -729,6 +763,36 @@ function clearCompletedItems() {
     appState.shoppingList = appState.shoppingList.filter(item => !item.completed);
     renderShoppingList();
     saveState();
+}
+
+function receiveDelivered() {
+    document.querySelectorAll('.shopping-list-item input[type=checkbox]:checked')
+        .forEach(cb => {
+            const itemName = cb.dataset.item;
+            const order = appState.orders.find(o => o.item === itemName);
+            if (!order) return;
+            const ingredient = findIngredientByName(itemName);
+            if (ingredient) {
+                ingredient.current_amount = (ingredient.current_amount || 0) + order.qty;
+                if (ingredient.current_amount >= ingredient.high) ingredient.current_level = 'high';
+                else if (ingredient.current_amount >= ingredient.medium) ingredient.current_level = 'medium';
+                else ingredient.current_level = 'low';
+            } else {
+                appState.ingredients.push({
+                    name: itemName,
+                    category: 'Pantry',
+                    unit: '',
+                    low: 1,
+                    medium: 2,
+                    high: 4,
+                    current_level: 'high',
+                    current_amount: order.qty
+                });
+            }
+        });
+    saveState();
+    renderInventory();
+    renderShoppingList();
 }
 
 // Recipe Import Functions
@@ -826,6 +890,29 @@ function convertUStoUK(amount, unit) {
     return { amount, unit };
 }
 
+// Fetch product options from Asda for a shopping list item
+async function fetchAsdaOptions(itemName) {
+    try {
+        const url = `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://groceries.asda.com/search/${encodeURIComponent(itemName)}`)}`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error('Asda fetch failed');
+        const html = await res.text();
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+        const script = doc.getElementById('__PRELOADED_STATE__');
+        if (!script) throw new Error('No preloaded state');
+        const data = JSON.parse(script.textContent);
+        return data.search.results.map(r => ({
+            brand: r.brandName,
+            price: parseFloat(r.price.numericValue),
+            productId: r.sku,
+            image: r.images[0]?.url
+        }));
+    } catch (err) {
+        console.warn('Failed to fetch Asda options', err);
+        return [];
+    }
+}
+
 // Settings Functions
 function initializeSettings() {
     const lowThreshold = document.getElementById('lowThreshold');
@@ -884,3 +971,4 @@ window.openIngredientModal = openIngredientModal;
 window.openRecipeModal = openRecipeModal;
 window.toggleShoppingItem = toggleShoppingItem;
 window.removeShoppingItem = removeShoppingItem;
+window.receiveDelivered = receiveDelivered;
