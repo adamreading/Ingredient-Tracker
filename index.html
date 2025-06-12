@@ -108,7 +108,17 @@
             <div class="container">
                 <h2>Recipe Suggestions</h2>
                 <p class="text-secondary">Check which recipes you can make with your current ingredients</p>
-                
+
+                <div class="card mt-8" id="recipeImport">
+                    <div class="card__body">
+                        <h3>Import Recipe</h3>
+                        <div class="flex gap-8">
+                            <input type="url" id="recipeUrl" class="form-control" placeholder="Enter recipe URL...">
+                            <button class="btn btn--outline" id="importRecipe">Import</button>
+                        </div>
+                    </div>
+                </div>
+
                 <div id="recipesList" class="recipes-grid">
                     <!-- Populated by JavaScript -->
                 </div>
@@ -123,6 +133,7 @@
                 <div class="shopping-actions">
                     <button class="btn btn--primary" id="generateShoppingList">Generate from Low Stock</button>
                     <button class="btn btn--secondary" id="clearCompleted">Clear Completed</button>
+                    <button class="btn" id="receiveDelivered">Receive delivered</button>
                 </div>
 
                 <div class="card mt-8">
