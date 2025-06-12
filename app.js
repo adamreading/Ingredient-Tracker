@@ -216,6 +216,28 @@ let appState = {
     currentEditingIngredient: null
 };
 
+const STORAGE_KEY = 'ingredient-tracker-state';
+
+function loadState() {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (!saved) return;
+    try {
+        const data = JSON.parse(saved);
+        if (data.ingredients) appState.ingredients = data.ingredients;
+        if (data.shoppingList) appState.shoppingList = data.shoppingList;
+    } catch (err) {
+        console.error('Failed to parse saved state', err);
+    }
+}
+
+function saveState() {
+    const data = {
+        ingredients: appState.ingredients,
+        shoppingList: appState.shoppingList
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+
 // DOM Elements
 const navToggle = document.getElementById('navToggle');
 const navMenu = document.getElementById('navMenu');
@@ -224,6 +246,7 @@ const pages = document.querySelectorAll('.page');
 
 // Initialize App
 document.addEventListener('DOMContentLoaded', function() {
+    loadState();
     initializeNavigation();
     updateDashboard();
     renderInventory();
@@ -526,6 +549,7 @@ function saveIngredientUpdate() {
     else ingredient.current_level = 'low';
     
     closeIngredientModal();
+    saveState();
     updateDashboard();
     renderInventory();
     renderRecipes();
@@ -601,6 +625,7 @@ function addMissingIngredientsToShopping() {
     
     closeRecipeModal();
     renderShoppingList();
+    saveState();
 }
 
 // Shopping List Functions
@@ -635,8 +660,9 @@ function generateShoppingListFromLowStock() {
             });
         }
     });
-    
+
     renderShoppingList();
+    saveState();
 }
 
 function addManualItem() {
@@ -651,9 +677,10 @@ function addManualItem() {
         completed: false,
         auto: false
     });
-    
+
     input.value = '';
     renderShoppingList();
+    saveState();
 }
 
 function renderShoppingList() {
@@ -685,17 +712,20 @@ function toggleShoppingItem(id) {
     if (item) {
         item.completed = !item.completed;
         renderShoppingList();
+        saveState();
     }
 }
 
 function removeShoppingItem(id) {
     appState.shoppingList = appState.shoppingList.filter(item => item.id !== id);
     renderShoppingList();
+    saveState();
 }
 
 function clearCompletedItems() {
     appState.shoppingList = appState.shoppingList.filter(item => !item.completed);
     renderShoppingList();
+    saveState();
 }
 
 // Settings Functions
@@ -737,7 +767,8 @@ function addNewIngredient() {
     };
     
     appState.ingredients.push(newIngredient);
-    
+    saveState();
+
     // Clear form
     document.getElementById('newIngredientName').value = '';
     document.getElementById('newIngredientUnit').value = '';
