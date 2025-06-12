@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kitchen Inventory Manager</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Mobile Navigation -->
+    <nav class="nav-mobile">
+        <div class="nav-header">
+            <h1>Kitchen Inventory</h1>
+            <button class="nav-toggle" id="navToggle">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+        </div>
+        <div class="nav-menu" id="navMenu">
+            <a href="#dashboard" class="nav-link active">Dashboard</a>
+            <a href="#inventory" class="nav-link">Inventory</a>
+            <a href="#recipes" class="nav-link">Recipes</a>
+            <a href="#shopping" class="nav-link">Shopping List</a>
+            <a href="#settings" class="nav-link">Settings</a>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Dashboard Page -->
+        <section id="dashboard" class="page active">
+            <div class="container">
+                <h2>Dashboard</h2>
+                <p class="welcome-text">Welcome to your Kitchen Inventory Manager</p>
+                
+                <!-- Quick Stats -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-number" id="lowCount">0</div>
+                        <div class="stat-label">Low Stock</div>
+                        <div class="stat-indicator low"></div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="mediumCount">0</div>
+                        <div class="stat-label">Medium Stock</div>
+                        <div class="stat-indicator medium"></div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="highCount">0</div>
+                        <div class="stat-label">High Stock</div>
+                        <div class="stat-indicator high"></div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="totalRecipes">9</div>
+                        <div class="stat-label">Available Recipes</div>
+                        <div class="stat-indicator recipes"></div>
+                    </div>
+                </div>
+
+                <!-- Recent Activity -->
+                <div class="card mt-8">
+                    <div class="card__body">
+                        <h3>Items Running Low</h3>
+                        <div id="lowStockItems" class="low-stock-list">
+                            <!-- Populated by JavaScript -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="quick-actions">
+                    <button class="btn btn--primary" onclick="showPage('inventory')">Update Inventory</button>
+                    <button class="btn btn--secondary" onclick="showPage('recipes')">Find Recipes</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Inventory Page -->
+        <section id="inventory" class="page">
+            <div class="container">
+                <h2>Ingredient Inventory</h2>
+                
+                <!-- Search and Filter -->
+                <div class="inventory-controls">
+                    <input type="text" id="searchInput" class="form-control" placeholder="Search ingredients...">
+                    <select id="categoryFilter" class="form-control">
+                        <option value="">All Categories</option>
+                        <option value="Meat & Fish">Meat & Fish</option>
+                        <option value="Vegetables">Vegetables</option>
+                        <option value="Pantry">Pantry</option>
+                        <option value="Dairy & Eggs">Dairy & Eggs</option>
+                        <option value="Herbs & Spices">Herbs & Spices</option>
+                        <option value="Canned Goods">Canned Goods</option>
+                        <option value="Frozen">Frozen</option>
+                    </select>
+                </div>
+
+                <!-- Ingredients List -->
+                <div id="ingredientsList" class="ingredients-grid">
+                    <!-- Populated by JavaScript -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Recipes Page -->
+        <section id="recipes" class="page">
+            <div class="container">
+                <h2>Recipe Suggestions</h2>
+                <p class="text-secondary">Check which recipes you can make with your current ingredients</p>
+                
+                <div id="recipesList" class="recipes-grid">
+                    <!-- Populated by JavaScript -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Shopping List Page -->
+        <section id="shopping" class="page">
+            <div class="container">
+                <h2>Shopping List</h2>
+                
+                <div class="shopping-actions">
+                    <button class="btn btn--primary" id="generateShoppingList">Generate from Low Stock</button>
+                    <button class="btn btn--secondary" id="clearCompleted">Clear Completed</button>
+                </div>
+
+                <div class="card mt-8">
+                    <div class="card__body">
+                        <h3>Items to Buy</h3>
+                        <div id="shoppingList">
+                            <!-- Populated by JavaScript -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Manual Add -->
+                <div class="card mt-8">
+                    <div class="card__body">
+                        <h3>Add Item Manually</h3>
+                        <div class="flex gap-8">
+                            <input type="text" id="manualItem" class="form-control" placeholder="Enter item name...">
+                            <button class="btn btn--outline" id="addManualItem">Add</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Settings Page -->
+        <section id="settings" class="page">
+            <div class="container">
+                <h2>Settings</h2>
+                
+                <div class="card">
+                    <div class="card__body">
+                        <h3>Stock Level Thresholds</h3>
+                        <p class="text-secondary">Adjust when items are considered low, medium, or high stock</p>
+                        
+                        <div class="settings-grid">
+                            <div class="setting-item">
+                                <label class="form-label">Low Stock Alert (%)</label>
+                                <input type="range" id="lowThreshold" min="10" max="50" value="30" class="range-input">
+                                <span id="lowThresholdValue">30%</span>
+                            </div>
+                            <div class="setting-item">
+                                <label class="form-label">Medium Stock (%)</label>
+                                <input type="range" id="mediumThreshold" min="40" max="80" value="60" class="range-input">
+                                <span id="mediumThresholdValue">60%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card mt-8">
+                    <div class="card__body">
+                        <h3>Add New Ingredient</h3>
+                        <div class="form-group">
+                            <label class="form-label">Ingredient Name</label>
+                            <input type="text" id="newIngredientName" class="form-control" placeholder="Enter ingredient name">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Category</label>
+                            <select id="newIngredientCategory" class="form-control">
+                                <option value="Meat & Fish">Meat & Fish</option>
+                                <option value="Vegetables">Vegetables</option>
+                                <option value="Pantry">Pantry</option>
+                                <option value="Dairy & Eggs">Dairy & Eggs</option>
+                                <option value="Herbs & Spices">Herbs & Spices</option>
+                                <option value="Canned Goods">Canned Goods</option>
+                                <option value="Frozen">Frozen</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Unit</label>
+                            <input type="text" id="newIngredientUnit" class="form-control" placeholder="e.g., pieces, g, ml">
+                        </div>
+                        <button class="btn btn--primary" id="addNewIngredient">Add Ingredient</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Ingredient Update Modal -->
+    <div id="ingredientModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle">Update Ingredient</h3>
+                <button class="modal-close" id="modalClose">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Current Amount</label>
+                    <div class="amount-controls">
+                        <button class="btn btn--outline btn--sm" id="decreaseAmount">-</button>
+                        <input type="number" id="currentAmount" class="form-control amount-input" step="0.1" min="0">
+                        <button class="btn btn--outline btn--sm" id="increaseAmount">+</button>
+                    </div>
+                    <div class="amount-unit" id="amountUnit"></div>
+                </div>
+                <div class="stock-level-indicator">
+                    <div class="level-bar">
+                        <div class="level-fill" id="levelFill"></div>
+                    </div>
+                    <div class="level-labels">
+                        <span class="level-label">Low</span>
+                        <span class="level-label">Medium</span>
+                        <span class="level-label">High</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn--secondary" id="modalCancel">Cancel</button>
+                <button class="btn btn--primary" id="modalSave">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recipe Detail Modal -->
+    <div id="recipeModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="recipeModalTitle">Recipe Details</h3>
+                <button class="modal-close" id="recipeModalClose">&times;</button>
+            </div>
+            <div class="modal-body" id="recipeModalBody">
+                <!-- Populated by JavaScript -->
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn--secondary" id="recipeModalClose2">Close</button>
+                <button class="btn btn--primary" id="addMissingToShopping">Add Missing to Shopping List</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
