@@ -225,6 +225,7 @@ function loadState() {
         const data = JSON.parse(saved);
         if (data.ingredients) appState.ingredients = data.ingredients;
         if (data.shoppingList) appState.shoppingList = data.shoppingList;
+        if (data.recipes) appState.recipes = data.recipes;
     } catch (err) {
         console.error('Failed to parse saved state', err);
     }
@@ -233,7 +234,8 @@ function loadState() {
 function saveState() {
     const data = {
         ingredients: appState.ingredients,
-        shoppingList: appState.shoppingList
+        shoppingList: appState.shoppingList,
+        recipes: appState.recipes
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
 }
@@ -253,6 +255,7 @@ document.addEventListener('DOMContentLoaded', function() {
     renderRecipes();
     initializeModals();
     initializeShoppingList();
+    initializeRecipeImport();
     initializeSettings();
 });
 
@@ -726,6 +729,101 @@ function clearCompletedItems() {
     appState.shoppingList = appState.shoppingList.filter(item => !item.completed);
     renderShoppingList();
     saveState();
+}
+
+// Recipe Import Functions
+function initializeRecipeImport() {
+    const importBtn = document.getElementById('importRecipe');
+    const urlInput = document.getElementById('recipeUrl');
+    if (!importBtn || !urlInput) return;
+
+    importBtn.addEventListener('click', () => {
+        const url = urlInput.value.trim();
+        if (!url) return;
+        importRecipeFromUrl(url);
+        urlInput.value = '';
+    });
+}
+
+async function importRecipeFromUrl(url) {
+    try {
+        const response = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`);
+        if (!response.ok) throw new Error('Network response was not ok');
+        const html = await response.text();
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+        const scripts = Array.from(doc.querySelectorAll('script[type="application/ld+json"]'));
+        let recipeData = null;
+        for (const script of scripts) {
+            try {
+                let data = JSON.parse(script.textContent);
+                if (Array.isArray(data)) data = data.find(d => d['@type'] === 'Recipe');
+                if (data && data['@graph']) data = data['@graph'].find(d => d['@type'] === 'Recipe');
+                if (data && data['@type'] === 'Recipe') {
+                    recipeData = data;
+                    break;
+                }
+            } catch (err) {
+                continue;
+            }
+        }
+
+        if (!recipeData || !recipeData.recipeIngredient) {
+            alert('Unable to parse recipe data from the provided URL.');
+            return;
+        }
+
+        const ingredients = recipeData.recipeIngredient.map(parseIngredientLine);
+
+        const recipe = {
+            id: Date.now(),
+            name: recipeData.name || 'Imported Recipe',
+            prep_time: recipeData.prepTime || '',
+            cook_time: recipeData.cookTime || '',
+            serves: recipeData.recipeYield || '',
+            ingredients
+        };
+
+        appState.recipes.push(recipe);
+        saveState();
+        renderRecipes();
+        alert('Recipe imported successfully!');
+    } catch (err) {
+        console.error(err);
+        alert('Failed to import recipe.');
+    }
+}
+
+function parseIngredientLine(line) {
+    const match = line.match(/^(\d+[\/.]?\d*)?\s*(\w+)?\s*(.*)$/);
+    let amount = parseFloat(match?.[1]) || 1;
+    let unit = match?.[2] ? match[2].toLowerCase() : '';
+    let name = match?.[3] || line;
+
+    const converted = convertUStoUK(amount, unit);
+    return { name: name.trim(), amount: converted.amount, unit: converted.unit };
+}
+
+function convertUStoUK(amount, unit) {
+    const map = {
+        cup: { unit: 'ml', factor: 240 },
+        cups: { unit: 'ml', factor: 240 },
+        oz: { unit: 'g', factor: 28.35 },
+        ounce: { unit: 'g', factor: 28.35 },
+        ounces: { unit: 'g', factor: 28.35 },
+        lb: { unit: 'g', factor: 453.6 },
+        lbs: { unit: 'g', factor: 453.6 },
+        pound: { unit: 'g', factor: 453.6 },
+        pounds: { unit: 'g', factor: 453.6 },
+        pint: { unit: 'ml', factor: 568 },
+        pints: { unit: 'ml', factor: 568 },
+        quart: { unit: 'ml', factor: 946 },
+        quarts: { unit: 'ml', factor: 946 }
+    };
+    const conv = map[unit];
+    if (conv) {
+        return { amount: Math.round(amount * conv.factor), unit: conv.unit };
+    }
+    return { amount, unit };
 }
 
 // Settings Functions
