@@ -231,7 +231,7 @@ function loadState() {
         if (data.orders) appState.orders = data.orders;
         if (data.recipes) appState.recipes = data.recipes;
     } catch (err) {
-        console.error('Failed to parse saved state', err);
+        console.warn('Failed to parse saved state', err);
     }
 }
 
@@ -852,7 +852,7 @@ async function importRecipeFromUrl(url) {
         renderRecipes();
         alert('Recipe imported successfully!');
     } catch (err) {
-        console.error(err);
+        console.warn(err);
         alert('Failed to import recipe.');
     }
 }
