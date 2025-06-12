@@ -1,0 +1,484 @@
+{
+  "ingredients": [
+    {
+      "name": "Beef Mince",
+      "category": "Meat & Fish",
+      "unit": "g",
+      "low": 250,
+      "medium": 500,
+      "high": 1000,
+      "current_level": "medium",
+      "current_amount": 500
+    },
+    {
+      "name": "Chicken Breast",
+      "category": "Meat & Fish",
+      "unit": "pieces",
+      "low": 2,
+      "medium": 4,
+      "high": 8,
+      "current_level": "high",
+      "current_amount": 6
+    },
+    {
+      "name": "Lamb Mince",
+      "category": "Meat & Fish",
+      "unit": "g",
+      "low": 250,
+      "medium": 500,
+      "high": 750,
+      "current_level": "low",
+      "current_amount": 200
+    },
+    {
+      "name": "Salmon Fillets",
+      "category": "Meat & Fish",
+      "unit": "pieces",
+      "low": 1,
+      "medium": 2,
+      "high": 4,
+      "current_level": "medium",
+      "current_amount": 2
+    },
+    {
+      "name": "Cod Fillets",
+      "category": "Meat & Fish",
+      "unit": "pieces",
+      "low": 1,
+      "medium": 2,
+      "high": 4,
+      "current_level": "low",
+      "current_amount": 1
+    },
+    {
+      "name": "Tuna (tinned)",
+      "category": "Meat & Fish",
+      "unit": "tins",
+      "low": 1,
+      "medium": 3,
+      "high": 6,
+      "current_level": "high",
+      "current_amount": 5
+    },
+    {
+      "name": "Onions",
+      "category": "Vegetables",
+      "unit": "pieces",
+      "low": 2,
+      "medium": 5,
+      "high": 10,
+      "current_level": "medium",
+      "current_amount": 4
+    },
+    {
+      "name": "Carrots",
+      "category": "Vegetables",
+      "unit": "pieces",
+      "low": 3,
+      "medium": 6,
+      "high": 12,
+      "current_level": "high",
+      "current_amount": 8
+    },
+    {
+      "name": "Garlic",
+      "category": "Vegetables",
+      "unit": "bulbs",
+      "low": 1,
+      "medium": 2,
+      "high": 3,
+      "current_level": "medium",
+      "current_amount": 1
+    },
+    {
+      "name": "Sweet Potatoes",
+      "category": "Vegetables",
+      "unit": "pieces",
+      "low": 2,
+      "medium": 4,
+      "high": 8,
+      "current_level": "low",
+      "current_amount": 1
+    },
+    {
+      "name": "Potatoes",
+      "category": "Vegetables",
+      "unit": "kg",
+      "low": 1,
+      "medium": 2,
+      "high": 5,
+      "current_level": "high",
+      "current_amount": 3
+    },
+    {
+      "name": "Celery",
+      "category": "Vegetables",
+      "unit": "sticks",
+      "low": 2,
+      "medium": 4,
+      "high": 8,
+      "current_level": "medium",
+      "current_amount": 4
+    },
+    {
+      "name": "Mushrooms",
+      "category": "Vegetables",
+      "unit": "g",
+      "low": 200,
+      "medium": 400,
+      "high": 800,
+      "current_level": "low",
+      "current_amount": 150
+    },
+    {
+      "name": "Red Peppers",
+      "category": "Vegetables",
+      "unit": "pieces",
+      "low": 1,
+      "medium": 3,
+      "high": 6,
+      "current_level": "medium",
+      "current_amount": 2
+    },
+    {
+      "name": "Courgettes",
+      "category": "Vegetables",
+      "unit": "pieces",
+      "low": 1,
+      "medium": 2,
+      "high": 4,
+      "current_level": "low",
+      "current_amount": 1
+    },
+    {
+      "name": "Spinach",
+      "category": "Vegetables",
+      "unit": "bags",
+      "low": 1,
+      "medium": 2,
+      "high": 4,
+      "current_level": "medium",
+      "current_amount": 2
+    },
+    {
+      "name": "Cherry Tomatoes",
+      "category": "Vegetables",
+      "unit": "punnet",
+      "low": 1,
+      "medium": 2,
+      "high": 4,
+      "current_level": "high",
+      "current_amount": 3
+    },
+    {
+      "name": "Pasta (Spaghetti)",
+      "category": "Pantry",
+      "unit": "g",
+      "low": 250,
+      "medium": 500,
+      "high": 1000,
+      "current_level": "high",
+      "current_amount": 750
+    },
+    {
+      "name": "Lasagne Sheets",
+      "category": "Pantry",
+      "unit": "sheets",
+      "low": 6,
+      "medium": 12,
+      "high": 24,
+      "current_level": "medium",
+      "current_amount": 12
+    },
+    {
+      "name": "Rice (Basmati)",
+      "category": "Pantry",
+      "unit": "kg",
+      "low": 0.5,
+      "medium": 1,
+      "high": 2,
+      "current_level": "low",
+      "current_amount": 0.3
+    },
+    {
+      "name": "Plain Flour",
+      "category": "Pantry",
+      "unit": "kg",
+      "low": 0.5,
+      "medium": 1,
+      "high": 1.5,
+      "current_level": "medium",
+      "current_amount": 0.8
+    },
+    {
+      "name": "Olive Oil",
+      "category": "Pantry",
+      "unit": "ml",
+      "low": 100,
+      "medium": 250,
+      "high": 500,
+      "current_level": "medium",
+      "current_amount": 300
+    },
+    {
+      "name": "Chopped Tomatoes (tinned)",
+      "category": "Pantry",
+      "unit": "tins",
+      "low": 2,
+      "medium": 4,
+      "high": 8,
+      "current_level": "high",
+      "current_amount": 6
+    },
+    {
+      "name": "Tomato Pur\u00e9e",
+      "category": "Pantry",
+      "unit": "tubes",
+      "low": 1,
+      "medium": 2,
+      "high": 3,
+      "current_level": "medium",
+      "current_amount": 1
+    },
+    {
+      "name": "Stock Cubes (Beef)",
+      "category": "Pantry",
+      "unit": "cubes",
+      "low": 4,
+      "medium": 8,
+      "high": 16,
+      "current_level": "low",
+      "current_amount": 3
+    },
+    {
+      "name": "Stock Cubes (Chicken)",
+      "category": "Pantry",
+      "unit": "cubes",
+      "low": 4,
+      "medium": 8,
+      "high": 16,
+      "current_level": "medium",
+      "current_amount": 6
+    },
+    {
+      "name": "Worcestershire Sauce",
+      "category": "Pantry",
+      "unit": "bottles",
+      "low": 1,
+      "medium": 1,
+      "high": 2,
+      "current_level": "high",
+      "current_amount": 1
+    },
+    {
+      "name": "Kidney Beans",
+      "category": "Canned Goods",
+      "unit": "tins",
+      "low": 1,
+      "medium": 3,
+      "high": 6,
+      "current_level": "medium",
+      "current_amount": 2
+    },
+    {
+      "name": "Cannellini Beans",
+      "category": "Canned Goods",
+      "unit": "tins",
+      "low": 1,
+      "medium": 2,
+      "high": 4,
+      "current_level": "low",
+      "current_amount": 1
+    },
+    {
+      "name": "Chickpeas",
+      "category": "Canned Goods",
+      "unit": "tins",
+      "low": 1,
+      "medium": 3,
+      "high": 6,
+      "current_level": "high",
+      "current_amount": 4
+    },
+    {
+      "name": "Sweetcorn",
+      "category": "Canned Goods",
+      "unit": "tins",
+      "low": 1,
+      "medium": 2,
+      "high": 4,
+      "current_level": "medium",
+      "current_amount": 2
+    },
+    {
+      "name": "Baked Beans",
+      "category": "Canned Goods",
+      "unit": "tins",
+      "low": 2,
+      "medium": 4,
+      "high": 8,
+      "current_level": "high",
+      "current_amount": 6
+    },
+    {
+      "name": "Eggs",
+      "category": "Dairy & Eggs",
+      "unit": "pieces",
+      "low": 6,
+      "medium": 12,
+      "high": 24,
+      "current_level": "medium",
+      "current_amount": 8
+    },
+    {
+      "name": "Milk",
+      "category": "Dairy & Eggs",
+      "unit": "litres",
+      "low": 1,
+      "medium": 2,
+      "high": 4,
+      "current_level": "low",
+      "current_amount": 0.5
+    },
+    {
+      "name": "Butter",
+      "category": "Dairy & Eggs",
+      "unit": "blocks",
+      "low": 1,
+      "medium": 2,
+      "high": 3,
+      "current_level": "medium",
+      "current_amount": 1
+    },
+    {
+      "name": "Cheddar Cheese",
+      "category": "Dairy & Eggs",
+      "unit": "g",
+      "low": 200,
+      "medium": 400,
+      "high": 800,
+      "current_level": "high",
+      "current_amount": 600
+    },
+    {
+      "name": "Parmesan Cheese",
+      "category": "Dairy & Eggs",
+      "unit": "g",
+      "low": 100,
+      "medium": 200,
+      "high": 300,
+      "current_level": "medium",
+      "current_amount": 150
+    },
+    {
+      "name": "Mozzarella",
+      "category": "Dairy & Eggs",
+      "unit": "balls",
+      "low": 1,
+      "medium": 2,
+      "high": 4,
+      "current_level": "low",
+      "current_amount": 1
+    },
+    {
+      "name": "Salt",
+      "category": "Herbs & Spices",
+      "unit": "containers",
+      "low": 1,
+      "medium": 1,
+      "high": 2,
+      "current_level": "high",
+      "current_amount": 1
+    },
+    {
+      "name": "Black Pepper",
+      "category": "Herbs & Spices",
+      "unit": "containers",
+      "low": 1,
+      "medium": 1,
+      "high": 2,
+      "current_level": "medium",
+      "current_amount": 1
+    },
+    {
+      "name": "Mixed Herbs",
+      "category": "Herbs & Spices",
+      "unit": "jars",
+      "low": 1,
+      "medium": 1,
+      "high": 2,
+      "current_level": "medium",
+      "current_amount": 1
+    },
+    {
+      "name": "Oregano",
+      "category": "Herbs & Spices",
+      "unit": "jars",
+      "low": 1,
+      "medium": 1,
+      "high": 2,
+      "current_level": "low",
+      "current_amount": 1
+    },
+    {
+      "name": "Thyme",
+      "category": "Herbs & Spices",
+      "unit": "jars",
+      "low": 1,
+      "medium": 1,
+      "high": 2,
+      "current_level": "high",
+      "current_amount": 1
+    },
+    {
+      "name": "Paprika",
+      "category": "Herbs & Spices",
+      "unit": "jars",
+      "low": 1,
+      "medium": 1,
+      "high": 2,
+      "current_level": "medium",
+      "current_amount": 1
+    },
+    {
+      "name": "Garlic Powder",
+      "category": "Herbs & Spices",
+      "unit": "jars",
+      "low": 1,
+      "medium": 1,
+      "high": 2,
+      "current_level": "low",
+      "current_amount": 1
+    },
+    {
+      "name": "Frozen Peas",
+      "category": "Frozen",
+      "unit": "bags",
+      "low": 1,
+      "medium": 2,
+      "high": 4,
+      "current_level": "medium",
+      "current_amount": 2
+    },
+    {
+      "name": "Frozen Sweetcorn",
+      "category": "Frozen",
+      "unit": "bags",
+      "low": 1,
+      "medium": 2,
+      "high": 3,
+      "current_level": "high",
+      "current_amount": 2
+    },
+    {
+      "name": "Fish Fingers",
+      "category": "Frozen",
+      "unit": "boxes",
+      "low": 1,
+      "medium": 2,
+      "high": 3,
+      "current_level": "low",
+      "current_amount": 1
+    }
+  ]
+}

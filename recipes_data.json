@@ -1,0 +1,480 @@
+{
+  "recipes": [
+    {
+      "id": 1,
+      "name": "Classic Lasagne",
+      "prep_time": "30 mins",
+      "cook_time": "1 hour",
+      "serves": 4,
+      "ingredients": [
+        {
+          "name": "Beef Mince",
+          "amount": 500,
+          "unit": "g"
+        },
+        {
+          "name": "Lasagne Sheets",
+          "amount": 12,
+          "unit": "sheets"
+        },
+        {
+          "name": "Onions",
+          "amount": 1,
+          "unit": "pieces"
+        },
+        {
+          "name": "Carrots",
+          "amount": 1,
+          "unit": "pieces"
+        },
+        {
+          "name": "Garlic",
+          "amount": 2,
+          "unit": "cloves"
+        },
+        {
+          "name": "Chopped Tomatoes (tinned)",
+          "amount": 2,
+          "unit": "tins"
+        },
+        {
+          "name": "Tomato Pur\u00e9e",
+          "amount": 1,
+          "unit": "tbsp"
+        },
+        {
+          "name": "Cheddar Cheese",
+          "amount": 200,
+          "unit": "g"
+        },
+        {
+          "name": "Mozzarella",
+          "amount": 1,
+          "unit": "balls"
+        },
+        {
+          "name": "Olive Oil",
+          "amount": 2,
+          "unit": "tbsp"
+        },
+        {
+          "name": "Mixed Herbs",
+          "amount": 1,
+          "unit": "tsp"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Spaghetti Bolognese",
+      "prep_time": "15 mins",
+      "cook_time": "40 mins",
+      "serves": 4,
+      "ingredients": [
+        {
+          "name": "Beef Mince",
+          "amount": 400,
+          "unit": "g"
+        },
+        {
+          "name": "Pasta (Spaghetti)",
+          "amount": 400,
+          "unit": "g"
+        },
+        {
+          "name": "Onions",
+          "amount": 1,
+          "unit": "pieces"
+        },
+        {
+          "name": "Carrots",
+          "amount": 1,
+          "unit": "pieces"
+        },
+        {
+          "name": "Garlic",
+          "amount": 2,
+          "unit": "cloves"
+        },
+        {
+          "name": "Chopped Tomatoes (tinned)",
+          "amount": 2,
+          "unit": "tins"
+        },
+        {
+          "name": "Tomato Pur\u00e9e",
+          "amount": 2,
+          "unit": "tbsp"
+        },
+        {
+          "name": "Stock Cubes (Beef)",
+          "amount": 1,
+          "unit": "cubes"
+        },
+        {
+          "name": "Olive Oil",
+          "amount": 2,
+          "unit": "tbsp"
+        },
+        {
+          "name": "Mixed Herbs",
+          "amount": 1,
+          "unit": "tsp"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "Steak, Egg & Sweet Potato",
+      "prep_time": "10 mins",
+      "cook_time": "25 mins",
+      "serves": 2,
+      "ingredients": [
+        {
+          "name": "Beef Steak",
+          "amount": 2,
+          "unit": "pieces"
+        },
+        {
+          "name": "Sweet Potatoes",
+          "amount": 2,
+          "unit": "pieces"
+        },
+        {
+          "name": "Eggs",
+          "amount": 2,
+          "unit": "pieces"
+        },
+        {
+          "name": "Olive Oil",
+          "amount": 3,
+          "unit": "tbsp"
+        },
+        {
+          "name": "Salt",
+          "amount": 1,
+          "unit": "tsp"
+        },
+        {
+          "name": "Black Pepper",
+          "amount": 1,
+          "unit": "tsp"
+        },
+        {
+          "name": "Thyme",
+          "amount": 0.5,
+          "unit": "tsp"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "name": "Shepherd's Pie",
+      "prep_time": "20 mins",
+      "cook_time": "1 hour 15 mins",
+      "serves": 6,
+      "ingredients": [
+        {
+          "name": "Lamb Mince",
+          "amount": 500,
+          "unit": "g"
+        },
+        {
+          "name": "Potatoes",
+          "amount": 800,
+          "unit": "g"
+        },
+        {
+          "name": "Onions",
+          "amount": 2,
+          "unit": "pieces"
+        },
+        {
+          "name": "Carrots",
+          "amount": 3,
+          "unit": "pieces"
+        },
+        {
+          "name": "Garlic",
+          "amount": 1,
+          "unit": "cloves"
+        },
+        {
+          "name": "Stock Cubes (Beef)",
+          "amount": 1,
+          "unit": "cubes"
+        },
+        {
+          "name": "Chopped Tomatoes (tinned)",
+          "amount": 1,
+          "unit": "tins"
+        },
+        {
+          "name": "Tomato Pur\u00e9e",
+          "amount": 1,
+          "unit": "tsp"
+        },
+        {
+          "name": "Worcestershire Sauce",
+          "amount": 0.25,
+          "unit": "tsp"
+        },
+        {
+          "name": "Butter",
+          "amount": 25,
+          "unit": "g"
+        },
+        {
+          "name": "Milk",
+          "amount": 4,
+          "unit": "tbsp"
+        },
+        {
+          "name": "Cheddar Cheese",
+          "amount": 40,
+          "unit": "g"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "name": "Fish & Chips",
+      "prep_time": "10 mins",
+      "cook_time": "40 mins",
+      "serves": 4,
+      "ingredients": [
+        {
+          "name": "Cod Fillets",
+          "amount": 4,
+          "unit": "pieces"
+        },
+        {
+          "name": "Potatoes",
+          "amount": 4,
+          "unit": "pieces"
+        },
+        {
+          "name": "Plain Flour",
+          "amount": 75,
+          "unit": "g"
+        },
+        {
+          "name": "Eggs",
+          "amount": 1,
+          "unit": "pieces"
+        },
+        {
+          "name": "Olive Oil",
+          "amount": 1,
+          "unit": "tbsp"
+        },
+        {
+          "name": "Salt",
+          "amount": 1,
+          "unit": "tsp"
+        },
+        {
+          "name": "Black Pepper",
+          "amount": 1,
+          "unit": "tsp"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "name": "Roast Chicken Dinner",
+      "prep_time": "15 mins",
+      "cook_time": "1 hour",
+      "serves": 4,
+      "ingredients": [
+        {
+          "name": "Chicken Breast",
+          "amount": 4,
+          "unit": "pieces"
+        },
+        {
+          "name": "Potatoes",
+          "amount": 8,
+          "unit": "pieces"
+        },
+        {
+          "name": "Carrots",
+          "amount": 4,
+          "unit": "pieces"
+        },
+        {
+          "name": "Onions",
+          "amount": 1,
+          "unit": "pieces"
+        },
+        {
+          "name": "Garlic",
+          "amount": 2,
+          "unit": "cloves"
+        },
+        {
+          "name": "Olive Oil",
+          "amount": 4,
+          "unit": "tbsp"
+        },
+        {
+          "name": "Thyme",
+          "amount": 1,
+          "unit": "tsp"
+        },
+        {
+          "name": "Salt",
+          "amount": 1,
+          "unit": "tsp"
+        },
+        {
+          "name": "Black Pepper",
+          "amount": 1,
+          "unit": "tsp"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "name": "Chicken Curry",
+      "prep_time": "15 mins",
+      "cook_time": "30 mins",
+      "serves": 4,
+      "ingredients": [
+        {
+          "name": "Chicken Breast",
+          "amount": 4,
+          "unit": "pieces"
+        },
+        {
+          "name": "Rice (Basmati)",
+          "amount": 300,
+          "unit": "g"
+        },
+        {
+          "name": "Onions",
+          "amount": 2,
+          "unit": "pieces"
+        },
+        {
+          "name": "Garlic",
+          "amount": 3,
+          "unit": "cloves"
+        },
+        {
+          "name": "Chopped Tomatoes (tinned)",
+          "amount": 1,
+          "unit": "tins"
+        },
+        {
+          "name": "Coconut Milk",
+          "amount": 1,
+          "unit": "tin"
+        },
+        {
+          "name": "Olive Oil",
+          "amount": 2,
+          "unit": "tbsp"
+        },
+        {
+          "name": "Curry Powder",
+          "amount": 2,
+          "unit": "tsp"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "name": "Tuna Pasta Bake",
+      "prep_time": "15 mins",
+      "cook_time": "25 mins",
+      "serves": 4,
+      "ingredients": [
+        {
+          "name": "Pasta (Penne)",
+          "amount": 300,
+          "unit": "g"
+        },
+        {
+          "name": "Tuna (tinned)",
+          "amount": 2,
+          "unit": "tins"
+        },
+        {
+          "name": "Sweetcorn",
+          "amount": 1,
+          "unit": "tins"
+        },
+        {
+          "name": "Cheddar Cheese",
+          "amount": 200,
+          "unit": "g"
+        },
+        {
+          "name": "Milk",
+          "amount": 300,
+          "unit": "ml"
+        },
+        {
+          "name": "Butter",
+          "amount": 25,
+          "unit": "g"
+        },
+        {
+          "name": "Plain Flour",
+          "amount": 25,
+          "unit": "g"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "name": "Vegetable Stir Fry",
+      "prep_time": "10 mins",
+      "cook_time": "15 mins",
+      "serves": 2,
+      "ingredients": [
+        {
+          "name": "Red Peppers",
+          "amount": 2,
+          "unit": "pieces"
+        },
+        {
+          "name": "Courgettes",
+          "amount": 1,
+          "unit": "pieces"
+        },
+        {
+          "name": "Mushrooms",
+          "amount": 200,
+          "unit": "g"
+        },
+        {
+          "name": "Onions",
+          "amount": 1,
+          "unit": "pieces"
+        },
+        {
+          "name": "Garlic",
+          "amount": 2,
+          "unit": "cloves"
+        },
+        {
+          "name": "Rice (Basmati)",
+          "amount": 200,
+          "unit": "g"
+        },
+        {
+          "name": "Olive Oil",
+          "amount": 3,
+          "unit": "tbsp"
+        },
+        {
+          "name": "Soy Sauce",
+          "amount": 2,
+          "unit": "tbsp"
+        }
+      ]
+    }
+  ]
+}
