@@ -9,6 +9,7 @@ The app stores all data in the browser using **localStorage** so each visitor ke
 - Generate a shopping list from low stock items
 - Import recipes from URLs (supports "application/ld+json" markup)
   - Ingredient quantities in US units are automatically converted to UK units
+  - Use the **Import Recipe** form on the Recipes page to paste a URL
 - Data persists between visits on the same browser
 
 ### Development
