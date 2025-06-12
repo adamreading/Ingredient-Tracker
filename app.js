@@ -213,8 +213,7 @@ let appState = {
         }
     ],
     shoppingList: [],
-    shoppingOptions: {},
-    orders: [],
+    purchases: [],
     currentEditingIngredient: null
 };
 
@@ -227,8 +226,8 @@ function loadState() {
         const data = JSON.parse(saved);
         if (data.ingredients) appState.ingredients = data.ingredients;
         if (data.shoppingList) appState.shoppingList = data.shoppingList;
-        if (data.shoppingOptions) appState.shoppingOptions = data.shoppingOptions;
-        if (data.orders) appState.orders = data.orders;
+        if (data.purchases) appState.purchases = data.purchases;
+        else if (data.orders) appState.purchases = data.orders; // backwards compat
         if (data.recipes) appState.recipes = data.recipes;
     } catch (err) {
         console.warn('Failed to parse saved state', err);
@@ -239,8 +238,7 @@ function saveState() {
     const data = {
         ingredients: appState.ingredients,
         shoppingList: appState.shoppingList,
-        shoppingOptions: appState.shoppingOptions,
-        orders: appState.orders,
+        purchases: appState.purchases,
         recipes: appState.recipes
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
@@ -703,11 +701,10 @@ async function renderShoppingList() {
     }
     
     let html = '';
+    const allUnits = [...new Set(appState.ingredients.map(i => i.unit).filter(Boolean))];
     for (const item of appState.shoppingList) {
-        if (!appState.shoppingOptions[item.name]) {
-            appState.shoppingOptions[item.name] = await fetchAsdaOptions(item.name);
-        }
-        const options = appState.shoppingOptions[item.name] || [];
+        const ingredient = findIngredientByName(item.name);
+        const defaultUnit = item.unit || ingredient?.unit || allUnits[0] || '';
         html += `
         <div class="shopping-item shopping-list-item ${item.completed ? 'completed' : ''}">
             <input type="checkbox" class="shopping-checkbox" data-item="${item.name}"
@@ -719,25 +716,24 @@ async function renderShoppingList() {
             </div>
             <button class="shopping-item-remove" onclick="removeShoppingItem(${item.id})">✗</button>
             <select data-item="${item.name}">
-                ${options.map(o => `<option value="${o.productId}">${o.brand} – £${o.price.toFixed(2)}</option>`).join('')}
+                ${allUnits.map(u => `<option value="${u}" ${u === defaultUnit ? 'selected' : ''}>${u}</option>`).join('')}
             </select>
-            <input type="number" min="1" value="1" data-qty="${item.name}">
-            <button data-add="${item.name}">Add to basket</button>
+            <input type="number" min="0" step="0.1" value="1" data-qty="${item.name}">
+            <button data-add="${item.name}">Add purchased</button>
         </div>`;
     }
     shoppingContainer.innerHTML = html;
 
-    // attach add-to-basket handlers
+    // attach purchase handlers
     shoppingContainer.querySelectorAll('[data-add]').forEach(btn => {
         btn.addEventListener('click', e => {
             const item = e.target.dataset.add;
             const select = e.target.previousElementSibling.previousElementSibling;
             const qtyInput = e.target.previousElementSibling;
-            const id = select.value;
-            const qty = +qtyInput.value;
-            const option = appState.shoppingOptions[item].find(o => o.productId === id);
-            if (option) {
-                appState.orders.push({ item, ...option, qty });
+            const unit = select.value;
+            const qty = parseFloat(qtyInput.value) || 0;
+            if (qty > 0) {
+                appState.purchases.push({ item, unit, qty });
                 saveState();
             }
         });
@@ -769,11 +765,12 @@ function receiveDelivered() {
     document.querySelectorAll('.shopping-list-item input[type=checkbox]:checked')
         .forEach(cb => {
             const itemName = cb.dataset.item;
-            const order = appState.orders.find(o => o.item === itemName);
-            if (!order) return;
+            const purchase = appState.purchases.find(o => o.item === itemName);
+            if (!purchase) return;
             const ingredient = findIngredientByName(itemName);
+            const qty = purchase.qty;
             if (ingredient) {
-                ingredient.current_amount = (ingredient.current_amount || 0) + order.qty;
+                ingredient.current_amount = (ingredient.current_amount || 0) + qty;
                 if (ingredient.current_amount >= ingredient.high) ingredient.current_level = 'high';
                 else if (ingredient.current_amount >= ingredient.medium) ingredient.current_level = 'medium';
                 else ingredient.current_level = 'low';
@@ -781,12 +778,12 @@ function receiveDelivered() {
                 appState.ingredients.push({
                     name: itemName,
                     category: 'Pantry',
-                    unit: '',
+                    unit: purchase.unit,
                     low: 1,
                     medium: 2,
                     high: 4,
                     current_level: 'high',
-                    current_amount: order.qty
+                    current_amount: qty
                 });
             }
         });
@@ -888,29 +885,6 @@ function convertUStoUK(amount, unit) {
         return { amount: Math.round(amount * conv.factor), unit: conv.unit };
     }
     return { amount, unit };
-}
-
-// Fetch product options from Asda for a shopping list item
-async function fetchAsdaOptions(itemName) {
-    try {
-        const url = `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://groceries.asda.com/search/${encodeURIComponent(itemName)}`)}`;
-        const res = await fetch(url);
-        if (!res.ok) throw new Error('Asda fetch failed');
-        const html = await res.text();
-        const doc = new DOMParser().parseFromString(html, 'text/html');
-        const script = doc.getElementById('__PRELOADED_STATE__');
-        if (!script) throw new Error('No preloaded state');
-        const data = JSON.parse(script.textContent);
-        return data.search.results.map(r => ({
-            brand: r.brandName,
-            price: parseFloat(r.price.numericValue),
-            productId: r.sku,
-            image: r.images[0]?.url
-        }));
-    } catch (err) {
-        console.warn('Failed to fetch Asda options', err);
-        return [];
-    }
 }
 
 // Settings Functions
