@@ -928,7 +928,6 @@ async function renderShoppingList() {
             }
         });
     });
-
     shoppingContainer.querySelectorAll('input[data-qty]').forEach(inp => {
         inp.addEventListener('input', e => {
             const id = parseFloat(inp.dataset.qty);
@@ -1071,6 +1070,22 @@ async function importRecipeFromUrl(url) {
         }
 
         const ingredients = recipeData.recipeIngredient.map(parseIngredientLine);
+
+        // ensure all ingredients exist in inventory
+        ingredients.forEach(ing => {
+            if (!findIngredientByName(ing.name)) {
+                appState.ingredients.push({
+                    name: ing.name,
+                    category: 'Pantry',
+                    unit: ing.unit,
+                    low: 1,
+                    medium: 2,
+                    high: 4,
+                    current_level: 'low',
+                    current_amount: 0
+                });
+            }
+        });
 
         const recipe = {
             id: Date.now(),
