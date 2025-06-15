@@ -1187,8 +1187,17 @@ select.form-control {
   background-color: rgba(0, 0, 0, 0.5);
 }
 
-#ingredientModal {
+#recipeModal {
   z-index: 1100;
+}
+
+#recipeEditModal {
+  z-index: 1200;
+}
+
+#ingredientModal {
+  z-index: 1300;
+
 }
 
 .modal.active {
