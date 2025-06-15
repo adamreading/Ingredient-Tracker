@@ -760,7 +760,6 @@ async function renderShoppingList() {
             }
         });
     });
-
     shoppingContainer.querySelectorAll('input[data-qty]').forEach(inp => {
         inp.addEventListener('input', e => {
             const id = parseFloat(inp.dataset.qty);
