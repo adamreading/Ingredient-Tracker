@@ -226,6 +226,7 @@ function loadState() {
         if (data.ingredients) appState.ingredients = data.ingredients;
         if (data.shoppingList) {
             appState.shoppingList = data.shoppingList.map(item => ({
+                id: item.id ?? Date.now() + Math.random(),
                 ...item,
                 qty: item.qty ?? item.amount ?? 1,
                 selectedUnit: item.selectedUnit ?? item.unit ?? ''
