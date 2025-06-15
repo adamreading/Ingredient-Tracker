@@ -264,6 +264,7 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeModals();
     initializeShoppingList();
     initializeRecipeImport();
+    initializeRecipeSelection();
     initializeSettings();
 });
 
@@ -399,11 +400,17 @@ function renderRecipes() {
     recipesList.innerHTML = recipesWithAvailability.map(recipe => `
         <div class="recipe-card" onclick="openRecipeModal(${recipe.id})">
             <div class="recipe-header">
-                <div class="recipe-title">${recipe.name}</div>
-                <div class="recipe-meta">
-                    <span>Prep: ${recipe.prep_time}</span>
-                    <span>Cook: ${recipe.cook_time}</span>
-                    <span>Serves: ${recipe.serves}</span>
+                <div>
+                    <div class="recipe-title">${recipe.name}</div>
+                    <div class="recipe-meta">
+                        <span>Prep: ${recipe.prep_time}</span>
+                        <span>Cook: ${recipe.cook_time}</span>
+                        <span>Serves: ${recipe.serves}</span>
+                    </div>
+                </div>
+                <div class="recipe-select" onclick="event.stopPropagation()">
+                    <input type="checkbox" class="recipe-check" data-id="${recipe.id}">
+                    <input type="number" min="1" value="1" class="recipe-qty" data-id="${recipe.id}">
                 </div>
             </div>
             <div class="recipe-body">
@@ -721,6 +728,7 @@ async function renderShoppingList() {
         }
         const defaultUnit = item.selectedUnit;
         const qty = item.qty;
+        const inStock = ingredient ? `${ingredient.current_amount} ${ingredient.unit}` : '0';
         html += `
         <div class="shopping-item shopping-list-item ${item.completed ? 'completed' : ''}">
             <input type="checkbox" class="shopping-checkbox" data-item="${item.name}"
@@ -728,6 +736,7 @@ async function renderShoppingList() {
                    onchange="toggleShoppingItem(${item.id})">
             <div class="shopping-item-text">
                 <strong>${item.name}</strong>
+                <span class="text-secondary">(stock: ${inStock})</span>
                 ${item.amount ? `<div class="text-secondary">${item.amount} ${item.unit || ''}</div>` : ''}
             </div>
             <button class="shopping-item-remove" onclick="removeShoppingItem(${item.id})">✗</button>
@@ -812,6 +821,52 @@ function addToInventory(name, qty, unit) {
     }
 }
 
+function addSelectedRecipesToShopping() {
+    const checks = document.querySelectorAll('.recipe-check:checked');
+    const needed = {};
+    checks.forEach(chk => {
+        const id = parseFloat(chk.dataset.id);
+        const qtyInput = document.querySelector(`.recipe-qty[data-id="${id}"]`);
+        const count = parseInt(qtyInput?.value) || 1;
+        const recipe = appState.recipes.find(r => r.id === id);
+        if (!recipe) return;
+        recipe.ingredients.forEach(ing => {
+            const amt = (ing.amount || 1) * count;
+            if (!needed[ing.name]) needed[ing.name] = { amount: 0, unit: ing.unit };
+            needed[ing.name].amount += amt;
+        });
+    });
+
+    Object.entries(needed).forEach(([name, info]) => {
+        const ingredient = findIngredientByName(name);
+        const have = ingredient?.current_amount || 0;
+        const missing = info.amount - have;
+        if (missing > 0) {
+            let existing = appState.shoppingList.find(i => i.name === name);
+            if (existing) {
+                existing.amount = (existing.amount || 0) + missing;
+                existing.qty = existing.amount;
+                existing.unit = existing.unit || info.unit;
+                existing.selectedUnit = existing.selectedUnit || info.unit;
+            } else {
+                appState.shoppingList.push({
+                    id: Date.now() + Math.random(),
+                    name,
+                    amount: missing,
+                    unit: info.unit,
+                    qty: missing,
+                    selectedUnit: info.unit,
+                    completed: false,
+                    auto: true
+                });
+            }
+        }
+    });
+
+    renderShoppingList();
+    saveState();
+}
+
 
 // Recipe Import Functions
 function initializeRecipeImport() {
@@ -825,6 +880,13 @@ function initializeRecipeImport() {
         importRecipeFromUrl(url);
         urlInput.value = '';
     });
+}
+
+function initializeRecipeSelection() {
+    const addBtn = document.getElementById('recipesToShopping');
+    if (addBtn) {
+        addBtn.addEventListener('click', addSelectedRecipesToShopping);
+    }
 }
 
 async function importRecipeFromUrl(url) {
