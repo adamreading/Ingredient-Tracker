@@ -972,6 +972,34 @@ select.form-control {
   width: 48px;
 }
 
+.recipe-actions {
+  display: flex;
+  gap: var(--space-8);
+}
+
+.recipe-actions button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--color-error);
+}
+
+.recipe-actions button.edit {
+  color: var(--color-text);
+}
+
+.recipe-edit-row {
+  display: flex;
+  gap: var(--space-8);
+  margin-bottom: var(--space-8);
+  align-items: center;
+}
+
+.recipe-edit-row input[type="number"] {
+  width: 70px;
+}
+
+
 .recipe-body {
   padding: var(--space-20);
 }

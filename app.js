@@ -213,7 +213,11 @@ let appState = {
         }
     ],
     shoppingList: [],
-    currentEditingIngredient: null
+    currentEditingIngredient: null,
+    ingredientModalCallback: null,
+    isNewIngredient: false,
+    currentEditingRecipe: null,
+    isNewRecipe: false
 };
 
 const STORAGE_KEY = 'ingredient-tracker-state';
@@ -261,11 +265,13 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeNavigation();
     updateDashboard();
     renderInventory();
+    renderIngredientOptions();
     renderRecipes();
     initializeModals();
     initializeShoppingList();
     initializeRecipeImport();
     initializeRecipeSelection();
+    initializeRecipeEditing();
     initializeSettings();
 });
 
@@ -389,6 +395,12 @@ function renderInventory() {
     }
 }
 
+function renderIngredientOptions() {
+    const list = document.getElementById('ingredientOptions');
+    if (!list) return;
+    list.innerHTML = appState.ingredients.map(ing => `<option value="${ing.name}"></option>`).join('');
+}
+
 // Recipe Functions
 function renderRecipes() {
     const recipesList = document.getElementById('recipesList');
@@ -407,6 +419,10 @@ function renderRecipes() {
                         <span>Prep: ${recipe.prep_time}</span>
                         <span>Cook: ${recipe.cook_time}</span>
                         <span>Serves: ${recipe.serves}</span>
+                    </div>
+                    <div class="recipe-actions">
+                        <button class="edit" onclick="editRecipe(${recipe.id});event.stopPropagation()">✏</button>
+                        <button onclick="deleteRecipe(${recipe.id});event.stopPropagation()">✗</button>
                     </div>
                 </div>
                 <div class="recipe-select" onclick="event.stopPropagation()">
@@ -520,13 +536,20 @@ function initializeModals() {
     });
 }
 
-function openIngredientModal(ingredientName) {
-    const ingredient = findIngredientByName(ingredientName);
-    if (!ingredient) return;
+function openIngredientModal(data, isNew = false, callback = null) {
+    let ingredient;
+    if (typeof data === 'string' && !isNew) {
+        ingredient = findIngredientByName(data);
+        if (!ingredient) return;
+    } else {
+        ingredient = typeof data === 'object' ? data : { name: data };
+    }
 
     appState.currentEditingIngredient = ingredient;
+    appState.ingredientModalCallback = callback;
+    appState.isNewIngredient = isNew;
 
-    document.getElementById('modalTitle').textContent = `Update ${ingredient.name}`;
+    document.getElementById('modalTitle').textContent = isNew ? `Add ${ingredient.name}` : `Update ${ingredient.name}`;
     document.getElementById('ingredientName').value = ingredient.name;
     document.getElementById('ingredientCategory').value = ingredient.category;
     document.getElementById('currentAmount').value = ingredient.current_amount;
@@ -542,6 +565,8 @@ function openIngredientModal(ingredientName) {
 function closeIngredientModal() {
     document.getElementById('ingredientModal').classList.remove('active');
     appState.currentEditingIngredient = null;
+    appState.ingredientModalCallback = null;
+    appState.isNewIngredient = false;
 }
 
 function adjustAmount(change) {
@@ -591,10 +616,18 @@ function saveIngredientUpdate() {
     else if (newAmount >= mediumVal) ingredient.current_level = 'medium';
     else ingredient.current_level = 'low';
     
+    if (appState.isNewIngredient) {
+        appState.ingredients.push(ingredient);
+    }
+
     closeIngredientModal();
+    if (appState.ingredientModalCallback) {
+        appState.ingredientModalCallback(ingredient);
+    }
     saveState();
     updateDashboard();
     renderInventory();
+    renderIngredientOptions();
     renderRecipes();
 }
 
@@ -607,10 +640,11 @@ function openRecipeModal(recipeId) {
     document.getElementById('recipeModalTitle').textContent = recipe.name;
     document.getElementById('recipeModalBody').innerHTML = `
         <div class="recipe-meta mb-8">
-            <strong>Prep Time:</strong> ${recipe.prep_time} | 
-            <strong>Cook Time:</strong> ${recipe.cook_time} | 
+            <strong>Prep Time:</strong> ${recipe.prep_time} |
+            <strong>Cook Time:</strong> ${recipe.cook_time} |
             <strong>Serves:</strong> ${recipe.serves}
         </div>
+        ${recipe.source ? `<div class="mb-8"><a href="${recipe.source}" target="_blank">View original</a></div>` : ''}
         <div class="recipe-availability mb-8">
             <div class="availability-score ${availability.level}">
                 ${availability.available}/${availability.total} ingredients available (${Math.round(availability.percentage)}%)
@@ -669,6 +703,116 @@ function addMissingIngredientsToShopping() {
     closeRecipeModal();
     renderShoppingList();
     saveState();
+}
+
+function initializeRecipeEditing() {
+    const createBtn = document.getElementById('createRecipe');
+    if (createBtn) {
+        createBtn.addEventListener('click', () => {
+            openRecipeEditModal({ id: Date.now(), name: '', prep_time: '', cook_time: '', serves: '', ingredients: [], source: '' }, true);
+        });
+    }
+    document.getElementById('recipeEditClose').addEventListener('click', closeRecipeEditModal);
+    document.getElementById('recipeEditCancel').addEventListener('click', closeRecipeEditModal);
+    document.getElementById('recipeEditSave').addEventListener('click', saveRecipeEdits);
+    document.getElementById('addRecipeIngredient').addEventListener('click', () => addRecipeIngredientRow());
+    document.getElementById('recipeDeleteBtn').addEventListener('click', deleteCurrentRecipe);
+}
+
+function openRecipeEditModal(recipe, isNew=false) {
+    appState.currentEditingRecipe = JSON.parse(JSON.stringify(recipe));
+    appState.isNewRecipe = isNew;
+    document.getElementById('recipeEditTitle').textContent = isNew ? 'Add Recipe' : 'Edit Recipe';
+    document.getElementById('editRecipeName').value = recipe.name || '';
+    document.getElementById('editRecipeLink').value = recipe.source || '';
+    document.getElementById('editRecipePrep').value = recipe.prep_time || '';
+    document.getElementById('editRecipeCook').value = recipe.cook_time || '';
+    document.getElementById('editRecipeServes').value = recipe.serves || '';
+    renderRecipeEditIngredients(recipe.ingredients || []);
+    document.getElementById('recipeDeleteBtn').style.display = isNew ? 'none' : 'inline-block';
+    document.getElementById('recipeEditModal').classList.add('active');
+}
+
+function closeRecipeEditModal() {
+    document.getElementById('recipeEditModal').classList.remove('active');
+    appState.currentEditingRecipe = null;
+    appState.isNewRecipe = false;
+}
+
+function renderRecipeEditIngredients(ings) {
+    const container = document.getElementById('recipeEditIngredients');
+    container.innerHTML = '';
+    ings.forEach(ing => addRecipeIngredientRow(ing.name, ing.amount, ing.unit));
+}
+
+function addRecipeIngredientRow(name='', amount='', unit='') {
+    const container = document.getElementById('recipeEditIngredients');
+    const row = document.createElement('div');
+    row.className = 'recipe-edit-row';
+    row.innerHTML = `<input type="text" list="ingredientOptions" class="recipe-ing-name" value="${name}">`
+        + `<input type="number" step="0.1" class="recipe-ing-amount" value="${amount}">`
+        + `<input type="text" class="recipe-ing-unit" value="${unit}">`
+        + `<button>&times;</button>`;
+    row.querySelector('button').addEventListener('click', () => row.remove());
+    container.appendChild(row);
+}
+
+async function ensureIngredientExists(name, unit) {
+    if (findIngredientByName(name)) return;
+    return new Promise(resolve => {
+        openIngredientModal({ name, unit, category: 'Pantry', low: 1, medium: 2, high: 4, current_level: 'low', current_amount: 0 }, true, () => resolve());
+    });
+}
+
+async function saveRecipeEdits() {
+    if (!appState.currentEditingRecipe) return;
+    const recipe = appState.currentEditingRecipe;
+    recipe.name = document.getElementById('editRecipeName').value.trim() || 'Untitled';
+    recipe.source = document.getElementById('editRecipeLink').value.trim();
+    recipe.prep_time = document.getElementById('editRecipePrep').value.trim();
+    recipe.cook_time = document.getElementById('editRecipeCook').value.trim();
+    recipe.serves = document.getElementById('editRecipeServes').value.trim();
+
+    const rows = document.querySelectorAll('#recipeEditIngredients .recipe-edit-row');
+    recipe.ingredients = [];
+    for (const row of rows) {
+        const name = row.querySelector('.recipe-ing-name').value.trim();
+        const amount = parseFloat(row.querySelector('.recipe-ing-amount').value) || 0;
+        const unit = row.querySelector('.recipe-ing-unit').value.trim();
+        if (!name) continue;
+        await ensureIngredientExists(name, unit);
+        recipe.ingredients.push({ name, amount, unit });
+    }
+
+    if (appState.isNewRecipe) {
+        recipe.id = Date.now();
+        appState.recipes.push(recipe);
+    } else {
+        const idx = appState.recipes.findIndex(r => r.id === recipe.id);
+        if (idx >= 0) appState.recipes[idx] = recipe;
+    }
+
+    closeRecipeEditModal();
+    saveState();
+    renderRecipes();
+    renderInventory();
+}
+
+function editRecipe(id) {
+    const recipe = appState.recipes.find(r => r.id === id);
+    if (recipe) openRecipeEditModal(recipe);
+}
+
+function deleteRecipe(id) {
+    appState.recipes = appState.recipes.filter(r => r.id !== id);
+    saveState();
+    renderRecipes();
+}
+
+function deleteCurrentRecipe() {
+    if (!appState.currentEditingRecipe) return;
+    deleteRecipe(appState.currentEditingRecipe.id);
+    closeRecipeEditModal();
 }
 
 // Shopping List Functions
@@ -916,9 +1060,7 @@ function initializeRecipeSelection() {
 
 async function importRecipeFromUrl(url) {
     try {
-        const response = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`);
-        if (!response.ok) throw new Error('Network response was not ok');
-        const html = await response.text();
+        const html = await fetchRecipeHtml(url);
         const doc = new DOMParser().parseFromString(html, 'text/html');
 
         let recipeData = extractRecipeData(doc);
@@ -951,18 +1093,30 @@ async function importRecipeFromUrl(url) {
             prep_time: recipeData.prepTime || '',
             cook_time: recipeData.cookTime || '',
             serves: recipeData.recipeYield || '',
-            ingredients
+            ingredients,
+            source: url
         };
-
-        appState.recipes.push(recipe);
-        saveState();
-        renderInventory();
-        renderRecipes();
-        alert('Recipe imported successfully!');
+        openRecipeEditModal(recipe, true);
     } catch (err) {
         console.warn(err);
         alert('Failed to import recipe.');
     }
+}
+
+async function fetchRecipeHtml(url) {
+    const proxies = [
+        `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+        `https://r.jina.ai/${url}`
+    ];
+    for (const proxy of proxies) {
+        try {
+            const res = await fetch(proxy);
+            if (res.ok) return await res.text();
+        } catch (_) {}
+    }
+    const res = await fetch(url);
+    if (res.ok) return await res.text();
+    throw new Error('Network response was not ok');
 }
 
 function extractRecipeData(doc) {
@@ -1020,6 +1174,7 @@ function parseIngredientLine(line) {
     const tokens = cleaned.trim().split(/\s+/);
     const fractionMap = { '½':0.5, '¼':0.25, '¾':0.75, '⅓':1/3, '⅔':2/3, '⅛':0.125, '⅜':0.375, '⅝':0.625, '⅞':0.875 };
     const units = ['g','gram','grams','kg','kilogram','kilograms','ml','l','litre','litres','tsp','teaspoon','teaspoons','tbsp','tablespoon','tablespoons','cup','cups','oz','ounce','ounces','lb','lbs','pound','pounds','pint','pints','quart','quarts','clove','cloves','can','cans'];
+
     function parseNumber(tok) {
         if (fractionMap[tok]) return fractionMap[tok];
         if (/^\d+\/\d+$/.test(tok)) { const [n,d]=tok.split('/').map(Number); return n/d; }
@@ -1132,5 +1287,7 @@ function addNewIngredient() {
 window.showPage = showPage;
 window.openIngredientModal = openIngredientModal;
 window.openRecipeModal = openRecipeModal;
+window.editRecipe = editRecipe;
+window.deleteRecipe = deleteRecipe;
 window.toggleShoppingItem = toggleShoppingItem;
 window.removeShoppingItem = removeShoppingItem;
