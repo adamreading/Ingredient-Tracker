@@ -1067,11 +1067,9 @@ function initializeRecipeSelection() {
 
 async function importRecipeFromUrl(url) {
     try {
-        const html = await fetchRecipeHtml(url);
-        const doc = new DOMParser().parseFromString(html, 'text/html');
-
-        let recipeData = extractRecipeData(doc);
-        if (!recipeData || !recipeData.recipeIngredient) {
+        const parser = new EnhancedRecipeParser();
+        const recipeData = await parser.parseRecipe(url);
+        if (!recipeData) {
             alert('Unable to parse recipe data from the provided URL.');
             return;
         }
@@ -1126,53 +1124,159 @@ async function fetchRecipeHtml(url) {
     throw new Error('Network response was not ok');
 }
 
-function extractRecipeData(doc) {
-    // attempt JSON-LD first
-    const scripts = Array.from(doc.querySelectorAll('script[type="application/ld+json"]'));
-    for (const script of scripts) {
-        try {
-            const data = JSON.parse(script.textContent);
-            const recipe = findRecipeObject(data);
-            if (recipe) return recipe;
-        } catch (_) {
-            continue;
-        }
+class EnhancedRecipeParser {
+    constructor() {
+        this.parsers = [
+            this.parseJSONLD.bind(this),
+            this.parseMicrodata.bind(this),
+            this.parseRDFa.bind(this),
+            this.parseOpenGraph.bind(this),
+            this.parseHTMLPatterns.bind(this)
+        ];
     }
-    // fallback to microdata
-    const recipeEl = doc.querySelector('[itemtype*="Recipe" i]');
-    if (recipeEl) {
-        const getProp = prop => recipeEl.querySelector(`[itemprop="${prop}"]`)?.textContent.trim() || '';
-        const ingredients = Array.from(recipeEl.querySelectorAll('[itemprop="recipeIngredient"]')).map(el => el.textContent.trim());
-        return {
-            name: getProp('name'),
-            prepTime: getProp('prepTime'),
-            cookTime: getProp('cookTime'),
-            recipeYield: getProp('recipeYield'),
-            recipeIngredient: ingredients
-        };
-    }
-    return null;
-}
 
-function findRecipeObject(data) {
-    if (!data) return null;
-    if (Array.isArray(data)) {
-        for (const item of data) {
-            const found = findRecipeObject(item);
-            if (found) return found;
+    async parseRecipe(url) {
+        const html = await fetchRecipeHtml(url);
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+        for (const method of this.parsers) {
+            try {
+                const recipe = method(doc, url);
+                if (recipe && this.isValidRecipe(recipe)) {
+                    return this.normalizeRecipe(recipe, url);
+                }
+            } catch (err) {
+                console.warn(`Parser ${method.name} failed`, err);
+            }
         }
         return null;
     }
-    if (typeof data === 'object') {
-        if (data['@type'] === 'Recipe') return data;
-        if (data['@graph']) return findRecipeObject(data['@graph']);
-        for (const key of Object.keys(data)) {
-            const found = findRecipeObject(data[key]);
-            if (found) return found;
+
+    parseJSONLD(doc) {
+        const scripts = Array.from(doc.querySelectorAll('script[type="application/ld+json"]'));
+        for (const script of scripts) {
+            try {
+                const data = JSON.parse(script.textContent);
+                const recipe = this.findRecipeObject(data);
+                if (recipe) return recipe;
+            } catch (_) { continue; }
         }
+        return null;
     }
-    return null;
+
+    parseMicrodata(doc) {
+        const recipeEl = doc.querySelector('[itemtype*="Recipe" i]');
+        if (!recipeEl) return null;
+        const get = p => recipeEl.querySelector(`[itemprop="${p}"]`)?.textContent.trim() || '';
+        const ingredients = Array.from(recipeEl.querySelectorAll('[itemprop="recipeIngredient"]')).map(el => el.textContent.trim());
+        const instructions = Array.from(recipeEl.querySelectorAll('[itemprop="recipeInstructions"] li, [itemprop="recipeInstructions"] [itemprop="text"]')).map(el => el.textContent.trim());
+        return { name: get('name'), prepTime: get('prepTime'), cookTime: get('cookTime'), recipeYield: get('recipeYield'), recipeIngredient: ingredients, recipeInstructions: instructions };
+    }
+
+    parseRDFa(doc) {
+        const recipeEl = doc.querySelector('[typeof*="Recipe" i]');
+        if (!recipeEl) return null;
+        const get = p => recipeEl.querySelector(`[property="${p}"]`)?.textContent.trim() || '';
+        const ingredients = Array.from(recipeEl.querySelectorAll('[property="recipeIngredient"]')).map(el => el.textContent.trim());
+        const instructions = Array.from(recipeEl.querySelectorAll('[property="recipeInstructions"]')).map(el => el.textContent.trim());
+        return { name: get('name'), prepTime: get('prepTime'), cookTime: get('cookTime'), recipeYield: get('recipeYield'), recipeIngredient: ingredients, recipeInstructions: instructions };
+    }
+
+    parseOpenGraph(doc) {
+        const title = doc.querySelector('meta[property="og:title"]')?.content;
+        if (!title) return null;
+        const ingredients = this.findIngredientsList(doc);
+        if (!ingredients.length) return null;
+        const desc = doc.querySelector('meta[property="og:description"]')?.content;
+        return { name: title, description: desc, recipeIngredient: ingredients };
+    }
+
+    parseHTMLPatterns(doc) {
+        const ingredients = this.findIngredientsList(doc);
+        if (!ingredients.length) return null;
+        const instructions = this.findInstructionsList(doc);
+        const title = doc.querySelector('h1')?.textContent.trim() || doc.title;
+        return { name: title, recipeIngredient: ingredients, recipeInstructions: instructions };
+    }
+
+    findIngredientsList(doc) {
+        const selectors = [
+            '.recipe-ingredients li',
+            '.ingredients li',
+            '[class*="ingredient"] li',
+            'ul[class*="ingredient"] li'
+        ];
+        for (const sel of selectors) {
+            const els = doc.querySelectorAll(sel);
+            if (els.length) return Array.from(els).map(el => el.textContent.trim());
+        }
+        return [];
+    }
+
+    findInstructionsList(doc) {
+        const selectors = [
+            '.recipe-instructions li',
+            '.instructions li',
+            '.recipe-method li',
+            '.method li'
+        ];
+        for (const sel of selectors) {
+            const els = doc.querySelectorAll(sel);
+            if (els.length) {
+                return Array.from(els).map((el, idx) => ({ '@type': 'HowToStep', name: `Step ${idx + 1}`, text: el.textContent.trim() }));
+            }
+        }
+        return [];
+    }
+
+    findRecipeObject(data) {
+        if (!data) return null;
+        if (Array.isArray(data)) {
+            for (const item of data) {
+                const found = this.findRecipeObject(item);
+                if (found) return found;
+            }
+            return null;
+        }
+        if (typeof data === 'object') {
+            if (data['@type'] === 'Recipe') return data;
+            if (data['@graph']) return this.findRecipeObject(data['@graph']);
+            for (const key of Object.keys(data)) {
+                const found = this.findRecipeObject(data[key]);
+                if (found) return found;
+            }
+        }
+        return null;
+    }
+
+    isValidRecipe(r) {
+        return r && r.recipeIngredient && r.recipeIngredient.length > 0;
+    }
+
+    normalizeInstructions(inst) {
+        if (!inst) return [];
+        if (Array.isArray(inst)) {
+            return inst.map((st, i) => typeof st === 'string' ? { '@type': 'HowToStep', name: `Step ${i + 1}`, text: st } : st);
+        }
+        if (typeof inst === 'string') {
+            return inst.split(/\n+/).map((t, i) => ({ '@type': 'HowToStep', name: `Step ${i + 1}`, text: t.trim() }));
+        }
+        return [];
+    }
+
+    normalizeRecipe(recipe, url) {
+        return {
+            name: recipe.name || '',
+            description: recipe.description || '',
+            prepTime: recipe.prepTime || '',
+            cookTime: recipe.cookTime || '',
+            recipeYield: recipe.recipeYield || '',
+            recipeIngredient: Array.isArray(recipe.recipeIngredient) ? recipe.recipeIngredient : [recipe.recipeIngredient],
+            recipeInstructions: this.normalizeInstructions(recipe.recipeInstructions),
+            url
+        };
+    }
 }
+
 
 function parseIngredientLine(line) {
     // remove notes in parentheses and anything after a comma
@@ -1181,7 +1285,6 @@ function parseIngredientLine(line) {
     const tokens = cleaned.trim().split(/\s+/);
     const fractionMap = { '½':0.5, '¼':0.25, '¾':0.75, '⅓':1/3, '⅔':2/3, '⅛':0.125, '⅜':0.375, '⅝':0.625, '⅞':0.875 };
     const units = ['g','gram','grams','kg','kilogram','kilograms','ml','l','litre','litres','tsp','teaspoon','teaspoons','tbsp','tablespoon','tablespoons','cup','cups','oz','ounce','ounces','lb','lbs','pound','pounds','pint','pints','quart','quarts','clove','cloves','can','cans'];
-
     function parseNumber(tok) {
         if (fractionMap[tok]) return fractionMap[tok];
         if (/^\d+\/\d+$/.test(tok)) { const [n,d]=tok.split('/').map(Number); return n/d; }
