@@ -213,8 +213,11 @@ let appState = {
         }
     ],
     shoppingList: [],
-    purchases: [],
-    currentEditingIngredient: null
+    currentEditingIngredient: null,
+    ingredientModalCallback: null,
+    isNewIngredient: false,
+    currentEditingRecipe: null,
+    isNewRecipe: false
 };
 
 const STORAGE_KEY = 'ingredient-tracker-state';
@@ -225,10 +228,17 @@ function loadState() {
     try {
         const data = JSON.parse(saved);
         if (data.ingredients) appState.ingredients = data.ingredients;
-        if (data.shoppingList) appState.shoppingList = data.shoppingList;
-        if (data.purchases) appState.purchases = data.purchases;
-        else if (data.orders) appState.purchases = data.orders; // backwards compat
+        if (data.shoppingList) {
+            appState.shoppingList = data.shoppingList.map(item => ({
+                id: item.id ?? Date.now() + Math.random(),
+                ...item,
+                qty: item.qty ?? item.amount ?? 1,
+                selectedUnit: item.selectedUnit ?? item.unit ?? ''
+            }));
+        }
         if (data.recipes) appState.recipes = data.recipes;
+        // ensure new properties persist
+        saveState();
     } catch (err) {
         console.warn('Failed to parse saved state', err);
     }
@@ -238,7 +248,6 @@ function saveState() {
     const data = {
         ingredients: appState.ingredients,
         shoppingList: appState.shoppingList,
-        purchases: appState.purchases,
         recipes: appState.recipes
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
@@ -251,17 +260,26 @@ const navLinks = document.querySelectorAll('.nav-link');
 const pages = document.querySelectorAll('.page');
 
 // Initialize App
-document.addEventListener('DOMContentLoaded', function() {
+function initializeApp() {
     loadState();
     initializeNavigation();
     updateDashboard();
     renderInventory();
+    renderIngredientOptions();
     renderRecipes();
     initializeModals();
     initializeShoppingList();
     initializeRecipeImport();
+    initializeRecipeSelection();
+    initializeRecipeEditing();
     initializeSettings();
-});
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeApp);
+} else {
+    initializeApp();
+}
 
 // Navigation
 function initializeNavigation() {
@@ -383,6 +401,12 @@ function renderInventory() {
     }
 }
 
+function renderIngredientOptions() {
+    const list = document.getElementById('ingredientOptions');
+    if (!list) return;
+    list.innerHTML = appState.ingredients.map(ing => `<option value="${ing.name}"></option>`).join('');
+}
+
 // Recipe Functions
 function renderRecipes() {
     const recipesList = document.getElementById('recipesList');
@@ -395,11 +419,21 @@ function renderRecipes() {
     recipesList.innerHTML = recipesWithAvailability.map(recipe => `
         <div class="recipe-card" onclick="openRecipeModal(${recipe.id})">
             <div class="recipe-header">
-                <div class="recipe-title">${recipe.name}</div>
-                <div class="recipe-meta">
-                    <span>Prep: ${recipe.prep_time}</span>
-                    <span>Cook: ${recipe.cook_time}</span>
-                    <span>Serves: ${recipe.serves}</span>
+                <div>
+                    <div class="recipe-title">${recipe.name}</div>
+                    <div class="recipe-meta">
+                        <span>Prep: ${recipe.prep_time}</span>
+                        <span>Cook: ${recipe.cook_time}</span>
+                        <span>Serves: ${recipe.serves}</span>
+                    </div>
+                    <div class="recipe-actions">
+                        <button class="edit" onclick="editRecipe(${recipe.id});event.stopPropagation()">✏</button>
+                        <button onclick="deleteRecipe(${recipe.id});event.stopPropagation()">✗</button>
+                    </div>
+                </div>
+                <div class="recipe-select" onclick="event.stopPropagation()">
+                    <input type="checkbox" class="recipe-check" data-id="${recipe.id}">
+                    <input type="number" min="1" value="1" class="recipe-qty" data-id="${recipe.id}">
                 </div>
             </div>
             <div class="recipe-body">
@@ -460,7 +494,7 @@ function checkRecipeAvailability(recipe) {
 }
 
 function findIngredientByName(name) {
-    return appState.ingredients.find(ing => ing.name === name);
+    return appState.ingredients.find(ing => ing.name.toLowerCase() === name.toLowerCase());
 }
 
 // Modal Functions
@@ -473,6 +507,9 @@ function initializeModals() {
     const decreaseBtn = document.getElementById('decreaseAmount');
     const increaseBtn = document.getElementById('increaseAmount');
     const amountInput = document.getElementById('currentAmount');
+    const lowInput = document.getElementById('lowTrigger');
+    const mediumInput = document.getElementById('mediumTrigger');
+    const highInput = document.getElementById('highTrigger');
     
     modalClose.addEventListener('click', closeIngredientModal);
     modalCancel.addEventListener('click', closeIngredientModal);
@@ -481,6 +518,9 @@ function initializeModals() {
     decreaseBtn.addEventListener('click', () => adjustAmount(-1));
     increaseBtn.addEventListener('click', () => adjustAmount(1));
     amountInput.addEventListener('input', updateStockLevel);
+    if (lowInput) lowInput.addEventListener('input', updateStockLevel);
+    if (mediumInput) mediumInput.addEventListener('input', updateStockLevel);
+    if (highInput) highInput.addEventListener('input', updateStockLevel);
     
     // Recipe Modal
     const recipeModal = document.getElementById('recipeModal');
@@ -502,16 +542,28 @@ function initializeModals() {
     });
 }
 
-function openIngredientModal(ingredientName) {
-    const ingredient = findIngredientByName(ingredientName);
-    if (!ingredient) return;
-    
+function openIngredientModal(data, isNew = false, callback = null) {
+    let ingredient;
+    if (typeof data === 'string' && !isNew) {
+        ingredient = findIngredientByName(data);
+        if (!ingredient) return;
+    } else {
+        ingredient = typeof data === 'object' ? data : { name: data };
+    }
+
     appState.currentEditingIngredient = ingredient;
-    
-    document.getElementById('modalTitle').textContent = `Update ${ingredient.name}`;
+    appState.ingredientModalCallback = callback;
+    appState.isNewIngredient = isNew;
+
+    document.getElementById('modalTitle').textContent = isNew ? `Add ${ingredient.name}` : `Update ${ingredient.name}`;
+    document.getElementById('ingredientName').value = ingredient.name;
+    document.getElementById('ingredientCategory').value = ingredient.category;
     document.getElementById('currentAmount').value = ingredient.current_amount;
     document.getElementById('amountUnit').textContent = ingredient.unit;
-    
+    document.getElementById('lowTrigger').value = ingredient.low;
+    document.getElementById('mediumTrigger').value = ingredient.medium;
+    document.getElementById('highTrigger').value = ingredient.high;
+
     updateStockLevel();
     document.getElementById('ingredientModal').classList.add('active');
 }
@@ -519,6 +571,8 @@ function openIngredientModal(ingredientName) {
 function closeIngredientModal() {
     document.getElementById('ingredientModal').classList.remove('active');
     appState.currentEditingIngredient = null;
+    appState.ingredientModalCallback = null;
+    appState.isNewIngredient = false;
 }
 
 function adjustAmount(change) {
@@ -531,34 +585,55 @@ function adjustAmount(change) {
 
 function updateStockLevel() {
     if (!appState.currentEditingIngredient) return;
-    
+
     const ingredient = appState.currentEditingIngredient;
     const currentAmount = parseFloat(document.getElementById('currentAmount').value) || 0;
-    
+    const lowVal = parseFloat(document.getElementById('lowTrigger').value) || ingredient.low;
+    const mediumVal = parseFloat(document.getElementById('mediumTrigger').value) || ingredient.medium;
+    const highVal = parseFloat(document.getElementById('highTrigger').value) || ingredient.high;
+
     let level = 'low';
-    if (currentAmount >= ingredient.high) level = 'high';
-    else if (currentAmount >= ingredient.medium) level = 'medium';
-    
-    const percentage = Math.min(100, (currentAmount / ingredient.high) * 100);
+    if (currentAmount >= highVal) level = 'high';
+    else if (currentAmount >= mediumVal) level = 'medium';
+
+    const percentage = Math.min(100, (currentAmount / highVal) * 100);
     document.getElementById('levelFill').style.width = `${percentage}%`;
 }
 
 function saveIngredientUpdate() {
     if (!appState.currentEditingIngredient) return;
-    
+
     const newAmount = parseFloat(document.getElementById('currentAmount').value) || 0;
     const ingredient = appState.currentEditingIngredient;
-    
+    const newName = document.getElementById('ingredientName').value.trim() || ingredient.name;
+    const newCategory = document.getElementById('ingredientCategory').value || ingredient.category;
+    const lowVal = parseFloat(document.getElementById('lowTrigger').value) || ingredient.low;
+    const mediumVal = parseFloat(document.getElementById('mediumTrigger').value) || ingredient.medium;
+    const highVal = parseFloat(document.getElementById('highTrigger').value) || ingredient.high;
+
     ingredient.current_amount = newAmount;
-    
-    if (newAmount >= ingredient.high) ingredient.current_level = 'high';
-    else if (newAmount >= ingredient.medium) ingredient.current_level = 'medium';
+    ingredient.name = newName;
+    ingredient.category = newCategory;
+    ingredient.low = lowVal;
+    ingredient.medium = mediumVal;
+    ingredient.high = highVal;
+
+    if (newAmount >= highVal) ingredient.current_level = 'high';
+    else if (newAmount >= mediumVal) ingredient.current_level = 'medium';
     else ingredient.current_level = 'low';
     
+    if (appState.isNewIngredient) {
+        appState.ingredients.push(ingredient);
+    }
+
     closeIngredientModal();
+    if (appState.ingredientModalCallback) {
+        appState.ingredientModalCallback(ingredient);
+    }
     saveState();
     updateDashboard();
     renderInventory();
+    renderIngredientOptions();
     renderRecipes();
 }
 
@@ -571,10 +646,11 @@ function openRecipeModal(recipeId) {
     document.getElementById('recipeModalTitle').textContent = recipe.name;
     document.getElementById('recipeModalBody').innerHTML = `
         <div class="recipe-meta mb-8">
-            <strong>Prep Time:</strong> ${recipe.prep_time} | 
-            <strong>Cook Time:</strong> ${recipe.cook_time} | 
+            <strong>Prep Time:</strong> ${recipe.prep_time} |
+            <strong>Cook Time:</strong> ${recipe.cook_time} |
             <strong>Serves:</strong> ${recipe.serves}
         </div>
+        ${recipe.source ? `<div class="mb-8"><a href="${recipe.source}" target="_blank">View original</a></div>` : ''}
         <div class="recipe-availability mb-8">
             <div class="availability-score ${availability.level}">
                 ${availability.available}/${availability.total} ingredients available (${Math.round(availability.percentage)}%)
@@ -635,17 +711,125 @@ function addMissingIngredientsToShopping() {
     saveState();
 }
 
+function initializeRecipeEditing() {
+    const createBtn = document.getElementById('createRecipe');
+    if (createBtn) {
+        createBtn.addEventListener('click', () => {
+            openRecipeEditModal({ id: Date.now(), name: '', prep_time: '', cook_time: '', serves: '', ingredients: [], source: '' }, true);
+        });
+    }
+    document.getElementById('recipeEditClose').addEventListener('click', closeRecipeEditModal);
+    document.getElementById('recipeEditCancel').addEventListener('click', closeRecipeEditModal);
+    document.getElementById('recipeEditSave').addEventListener('click', saveRecipeEdits);
+    document.getElementById('addRecipeIngredient').addEventListener('click', () => addRecipeIngredientRow());
+    document.getElementById('recipeDeleteBtn').addEventListener('click', deleteCurrentRecipe);
+}
+
+function openRecipeEditModal(recipe, isNew=false) {
+    appState.currentEditingRecipe = JSON.parse(JSON.stringify(recipe));
+    appState.isNewRecipe = isNew;
+    document.getElementById('recipeEditTitle').textContent = isNew ? 'Add Recipe' : 'Edit Recipe';
+    document.getElementById('editRecipeName').value = recipe.name || '';
+    document.getElementById('editRecipeLink').value = recipe.source || '';
+    document.getElementById('editRecipePrep').value = recipe.prep_time || '';
+    document.getElementById('editRecipeCook').value = recipe.cook_time || '';
+    document.getElementById('editRecipeServes').value = recipe.serves || '';
+    renderRecipeEditIngredients(recipe.ingredients || []);
+    document.getElementById('recipeDeleteBtn').style.display = isNew ? 'none' : 'inline-block';
+    document.getElementById('recipeEditModal').classList.add('active');
+}
+
+function closeRecipeEditModal() {
+    document.getElementById('recipeEditModal').classList.remove('active');
+    appState.currentEditingRecipe = null;
+    appState.isNewRecipe = false;
+}
+
+function renderRecipeEditIngredients(ings) {
+    const container = document.getElementById('recipeEditIngredients');
+    container.innerHTML = '';
+    ings.forEach(ing => addRecipeIngredientRow(ing.name, ing.amount, ing.unit));
+}
+
+function addRecipeIngredientRow(name='', amount='', unit='') {
+    const container = document.getElementById('recipeEditIngredients');
+    const row = document.createElement('div');
+    row.className = 'recipe-edit-row';
+    row.innerHTML = `<input type="text" list="ingredientOptions" class="recipe-ing-name" value="${name}">`
+        + `<input type="number" step="0.1" class="recipe-ing-amount" value="${amount}">`
+        + `<input type="text" class="recipe-ing-unit" value="${unit}">`
+        + `<button>&times;</button>`;
+    row.querySelector('button').addEventListener('click', () => row.remove());
+    container.appendChild(row);
+}
+
+async function ensureIngredientExists(name, unit) {
+    if (findIngredientByName(name)) return;
+    return new Promise(resolve => {
+        openIngredientModal({ name, unit, category: 'Pantry', low: 1, medium: 2, high: 4, current_level: 'low', current_amount: 0 }, true, () => resolve());
+    });
+}
+
+async function saveRecipeEdits() {
+    if (!appState.currentEditingRecipe) return;
+    const recipe = appState.currentEditingRecipe;
+    recipe.name = document.getElementById('editRecipeName').value.trim() || 'Untitled';
+    recipe.source = document.getElementById('editRecipeLink').value.trim();
+    recipe.prep_time = document.getElementById('editRecipePrep').value.trim();
+    recipe.cook_time = document.getElementById('editRecipeCook').value.trim();
+    recipe.serves = document.getElementById('editRecipeServes').value.trim();
+
+    const rows = document.querySelectorAll('#recipeEditIngredients .recipe-edit-row');
+    recipe.ingredients = [];
+    for (const row of rows) {
+        const name = row.querySelector('.recipe-ing-name').value.trim();
+        const amount = parseFloat(row.querySelector('.recipe-ing-amount').value) || 0;
+        const unit = row.querySelector('.recipe-ing-unit').value.trim();
+        if (!name) continue;
+        await ensureIngredientExists(name, unit);
+        recipe.ingredients.push({ name, amount, unit });
+    }
+
+    if (appState.isNewRecipe) {
+        recipe.id = Date.now();
+        appState.recipes.push(recipe);
+    } else {
+        const idx = appState.recipes.findIndex(r => r.id === recipe.id);
+        if (idx >= 0) appState.recipes[idx] = recipe;
+    }
+
+    closeRecipeEditModal();
+    saveState();
+    renderRecipes();
+    renderInventory();
+}
+
+function editRecipe(id) {
+    const recipe = appState.recipes.find(r => r.id === id);
+    if (recipe) openRecipeEditModal(recipe);
+}
+
+function deleteRecipe(id) {
+    appState.recipes = appState.recipes.filter(r => r.id !== id);
+    saveState();
+    renderRecipes();
+}
+
+function deleteCurrentRecipe() {
+    if (!appState.currentEditingRecipe) return;
+    deleteRecipe(appState.currentEditingRecipe.id);
+    closeRecipeEditModal();
+}
+
 // Shopping List Functions
 function initializeShoppingList() {
     const generateBtn = document.getElementById('generateShoppingList');
     const clearBtn = document.getElementById('clearCompleted');
-    const receiveBtn = document.getElementById('receiveDelivered');
     const addBtn = document.getElementById('addManualItem');
     const manualInput = document.getElementById('manualItem');
 
     generateBtn.addEventListener('click', generateShoppingListFromLowStock);
     clearBtn.addEventListener('click', clearCompletedItems);
-    receiveBtn.addEventListener('click', receiveDelivered);
     addBtn.addEventListener('click', addManualItem);
     
     manualInput.addEventListener('keypress', (e) => {
@@ -664,6 +848,8 @@ function generateShoppingListFromLowStock() {
                 name: item.name,
                 amount: item.medium - item.current_amount,
                 unit: item.unit,
+                qty: item.medium - item.current_amount,
+                selectedUnit: item.unit,
                 completed: false,
                 auto: true
             });
@@ -683,6 +869,8 @@ function addManualItem() {
     appState.shoppingList.push({
         id: Date.now(),
         name: itemName,
+        qty: 1,
+        selectedUnit: '',
         completed: false,
         auto: false
     });
@@ -702,9 +890,20 @@ async function renderShoppingList() {
     
     let html = '';
     const allUnits = [...new Set(appState.ingredients.map(i => i.unit).filter(Boolean))];
+    let changed = false;
     for (const item of appState.shoppingList) {
         const ingredient = findIngredientByName(item.name);
-        const defaultUnit = item.unit || ingredient?.unit || allUnits[0] || '';
+        if (item.qty == null) {
+            item.qty = item.amount ?? 1;
+            changed = true;
+        }
+        if (!item.selectedUnit) {
+            item.selectedUnit = item.unit || ingredient?.unit || allUnits[0] || '';
+            changed = true;
+        }
+        const defaultUnit = item.selectedUnit;
+        const qty = item.qty;
+        const inStock = ingredient ? `${ingredient.current_amount} ${ingredient.unit}` : '0';
         html += `
         <div class="shopping-item shopping-list-item ${item.completed ? 'completed' : ''}">
             <input type="checkbox" class="shopping-checkbox" data-item="${item.name}"
@@ -712,28 +911,36 @@ async function renderShoppingList() {
                    onchange="toggleShoppingItem(${item.id})">
             <div class="shopping-item-text">
                 <strong>${item.name}</strong>
+                <span class="text-secondary">(stock: ${inStock})</span>
                 ${item.amount ? `<div class="text-secondary">${item.amount} ${item.unit || ''}</div>` : ''}
             </div>
             <button class="shopping-item-remove" onclick="removeShoppingItem(${item.id})">✗</button>
-            <select data-item="${item.name}">
+            <select data-id="${item.id}">
                 ${allUnits.map(u => `<option value="${u}" ${u === defaultUnit ? 'selected' : ''}>${u}</option>`).join('')}
             </select>
-            <input type="number" min="0" step="0.1" value="1" data-qty="${item.name}">
-            <button data-add="${item.name}">Add purchased</button>
+            <input type="number" min="0" step="0.1" value="${qty}" data-qty="${item.id}">
         </div>`;
     }
     shoppingContainer.innerHTML = html;
+    if (changed) saveState();
 
-    // attach purchase handlers
-    shoppingContainer.querySelectorAll('[data-add]').forEach(btn => {
-        btn.addEventListener('click', e => {
-            const item = e.target.dataset.add;
-            const select = e.target.previousElementSibling.previousElementSibling;
-            const qtyInput = e.target.previousElementSibling;
-            const unit = select.value;
-            const qty = parseFloat(qtyInput.value) || 0;
-            if (qty > 0) {
-                appState.purchases.push({ item, unit, qty });
+    shoppingContainer.querySelectorAll('select[data-id]').forEach(sel => {
+        sel.addEventListener('change', e => {
+            const id = parseFloat(sel.dataset.id);
+            const item = appState.shoppingList.find(i => i.id === id);
+            if (item) {
+                item.selectedUnit = sel.value;
+                saveState();
+            }
+        });
+    });
+
+    shoppingContainer.querySelectorAll('input[data-qty]').forEach(inp => {
+        inp.addEventListener('input', e => {
+            const id = parseFloat(inp.dataset.qty);
+            const item = appState.shoppingList.find(i => i.id === id);
+            if (item) {
+                item.qty = parseFloat(inp.value) || 0;
                 saveState();
             }
         });
@@ -744,7 +951,15 @@ function toggleShoppingItem(id) {
     const item = appState.shoppingList.find(item => item.id === id);
     if (item) {
         item.completed = !item.completed;
+        if (item.completed) {
+            const qty = parseFloat(item.qty) || 0;
+            const unit = item.selectedUnit || item.unit;
+            if (qty > 0) {
+                addToInventory(item.name, qty, unit);
+            }
+        }
         renderShoppingList();
+        renderInventory();
         saveState();
     }
 }
@@ -761,36 +976,73 @@ function clearCompletedItems() {
     saveState();
 }
 
-function receiveDelivered() {
-    document.querySelectorAll('.shopping-list-item input[type=checkbox]:checked')
-        .forEach(cb => {
-            const itemName = cb.dataset.item;
-            const purchase = appState.purchases.find(o => o.item === itemName);
-            if (!purchase) return;
-            const ingredient = findIngredientByName(itemName);
-            const qty = purchase.qty;
-            if (ingredient) {
-                ingredient.current_amount = (ingredient.current_amount || 0) + qty;
-                if (ingredient.current_amount >= ingredient.high) ingredient.current_level = 'high';
-                else if (ingredient.current_amount >= ingredient.medium) ingredient.current_level = 'medium';
-                else ingredient.current_level = 'low';
+function addToInventory(name, qty, unit) {
+    const ingredient = findIngredientByName(name);
+    if (ingredient) {
+        ingredient.current_amount = (ingredient.current_amount || 0) + qty;
+        if (ingredient.current_amount >= ingredient.high) ingredient.current_level = 'high';
+        else if (ingredient.current_amount >= ingredient.medium) ingredient.current_level = 'medium';
+        else ingredient.current_level = 'low';
+    } else {
+        appState.ingredients.push({
+            name,
+            category: 'Pantry',
+            unit,
+            low: 1,
+            medium: 2,
+            high: 4,
+            current_level: 'high',
+            current_amount: qty
+        });
+    }
+}
+
+function addSelectedRecipesToShopping() {
+    const checks = document.querySelectorAll('.recipe-check:checked');
+    const needed = {};
+    checks.forEach(chk => {
+        const id = parseFloat(chk.dataset.id);
+        const qtyInput = document.querySelector(`.recipe-qty[data-id="${id}"]`);
+        const count = parseInt(qtyInput?.value) || 1;
+        const recipe = appState.recipes.find(r => r.id === id);
+        if (!recipe) return;
+        recipe.ingredients.forEach(ing => {
+            const amt = (ing.amount || 1) * count;
+            if (!needed[ing.name]) needed[ing.name] = { amount: 0, unit: ing.unit };
+            needed[ing.name].amount += amt;
+        });
+    });
+
+    Object.entries(needed).forEach(([name, info]) => {
+        const ingredient = findIngredientByName(name);
+        const have = ingredient?.current_amount || 0;
+        const missing = info.amount - have;
+        if (missing > 0) {
+            let existing = appState.shoppingList.find(i => i.name === name);
+            if (existing) {
+                existing.amount = (existing.amount || 0) + missing;
+                existing.qty = existing.amount;
+                existing.unit = existing.unit || info.unit;
+                existing.selectedUnit = existing.selectedUnit || info.unit;
             } else {
-                appState.ingredients.push({
-                    name: itemName,
-                    category: 'Pantry',
-                    unit: purchase.unit,
-                    low: 1,
-                    medium: 2,
-                    high: 4,
-                    current_level: 'high',
-                    current_amount: qty
+                appState.shoppingList.push({
+                    id: Date.now() + Math.random(),
+                    name,
+                    amount: missing,
+                    unit: info.unit,
+                    qty: missing,
+                    selectedUnit: info.unit,
+                    completed: false,
+                    auto: true
                 });
             }
-        });
-    saveState();
-    renderInventory();
+        }
+    });
+
     renderShoppingList();
+    saveState();
 }
+
 
 // Recipe Import Functions
 function initializeRecipeImport() {
@@ -806,29 +1058,18 @@ function initializeRecipeImport() {
     });
 }
 
+function initializeRecipeSelection() {
+    const addBtn = document.getElementById('recipesToShopping');
+    if (addBtn) {
+        addBtn.addEventListener('click', addSelectedRecipesToShopping);
+    }
+}
+
 async function importRecipeFromUrl(url) {
     try {
-        const response = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`);
-        if (!response.ok) throw new Error('Network response was not ok');
-        const html = await response.text();
-        const doc = new DOMParser().parseFromString(html, 'text/html');
-        const scripts = Array.from(doc.querySelectorAll('script[type="application/ld+json"]'));
-        let recipeData = null;
-        for (const script of scripts) {
-            try {
-                let data = JSON.parse(script.textContent);
-                if (Array.isArray(data)) data = data.find(d => d['@type'] === 'Recipe');
-                if (data && data['@graph']) data = data['@graph'].find(d => d['@type'] === 'Recipe');
-                if (data && data['@type'] === 'Recipe') {
-                    recipeData = data;
-                    break;
-                }
-            } catch (err) {
-                continue;
-            }
-        }
-
-        if (!recipeData || !recipeData.recipeIngredient) {
+        const parser = new EnhancedRecipeParser();
+        const recipeData = await parser.parseRecipe(url);
+        if (!recipeData) {
             alert('Unable to parse recipe data from the provided URL.');
             return;
         }
@@ -841,27 +1082,225 @@ async function importRecipeFromUrl(url) {
             prep_time: recipeData.prepTime || '',
             cook_time: recipeData.cookTime || '',
             serves: recipeData.recipeYield || '',
-            ingredients
+            ingredients,
+            source: url
         };
-
-        appState.recipes.push(recipe);
-        saveState();
-        renderRecipes();
-        alert('Recipe imported successfully!');
+        openRecipeEditModal(recipe, true);
     } catch (err) {
         console.warn(err);
         alert('Failed to import recipe.');
     }
 }
 
-function parseIngredientLine(line) {
-    const match = line.match(/^(\d+[\/.]?\d*)?\s*(\w+)?\s*(.*)$/);
-    let amount = parseFloat(match?.[1]) || 1;
-    let unit = match?.[2] ? match[2].toLowerCase() : '';
-    let name = match?.[3] || line;
+async function fetchRecipeHtml(url) {
+    const proxies = [
+        `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+        `https://r.jina.ai/${url}`
+    ];
+    for (const proxy of proxies) {
+        try {
+            const res = await fetch(proxy);
+            if (res.ok) return await res.text();
+        } catch (_) {}
+    }
+    const res = await fetch(url);
+    if (res.ok) return await res.text();
+    throw new Error('Network response was not ok');
+}
 
+class EnhancedRecipeParser {
+    constructor() {
+        this.parsers = [
+            this.parseJSONLD.bind(this),
+            this.parseMicrodata.bind(this),
+            this.parseRDFa.bind(this),
+            this.parseOpenGraph.bind(this),
+            this.parseHTMLPatterns.bind(this)
+        ];
+    }
+
+    async parseRecipe(url) {
+        const html = await fetchRecipeHtml(url);
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+        for (const method of this.parsers) {
+            try {
+                const recipe = method(doc, url);
+                if (recipe && this.isValidRecipe(recipe)) {
+                    return this.normalizeRecipe(recipe, url);
+                }
+            } catch (err) {
+                console.warn(`Parser ${method.name} failed`, err);
+            }
+        }
+        return null;
+    }
+
+    parseJSONLD(doc) {
+        const scripts = Array.from(doc.querySelectorAll('script[type="application/ld+json"]'));
+        for (const script of scripts) {
+            try {
+                const data = JSON.parse(script.textContent);
+                const recipe = this.findRecipeObject(data);
+                if (recipe) return recipe;
+            } catch (_) { continue; }
+        }
+        return null;
+    }
+
+    parseMicrodata(doc) {
+        const recipeEl = doc.querySelector('[itemtype*="Recipe" i]');
+        if (!recipeEl) return null;
+        const get = p => recipeEl.querySelector(`[itemprop="${p}"]`)?.textContent.trim() || '';
+        const ingredients = Array.from(recipeEl.querySelectorAll('[itemprop="recipeIngredient"]')).map(el => el.textContent.trim());
+        const instructions = Array.from(recipeEl.querySelectorAll('[itemprop="recipeInstructions"] li, [itemprop="recipeInstructions"] [itemprop="text"]')).map(el => el.textContent.trim());
+        return { name: get('name'), prepTime: get('prepTime'), cookTime: get('cookTime'), recipeYield: get('recipeYield'), recipeIngredient: ingredients, recipeInstructions: instructions };
+    }
+
+    parseRDFa(doc) {
+        const recipeEl = doc.querySelector('[typeof*="Recipe" i]');
+        if (!recipeEl) return null;
+        const get = p => recipeEl.querySelector(`[property="${p}"]`)?.textContent.trim() || '';
+        const ingredients = Array.from(recipeEl.querySelectorAll('[property="recipeIngredient"]')).map(el => el.textContent.trim());
+        const instructions = Array.from(recipeEl.querySelectorAll('[property="recipeInstructions"]')).map(el => el.textContent.trim());
+        return { name: get('name'), prepTime: get('prepTime'), cookTime: get('cookTime'), recipeYield: get('recipeYield'), recipeIngredient: ingredients, recipeInstructions: instructions };
+    }
+
+    parseOpenGraph(doc) {
+        const title = doc.querySelector('meta[property="og:title"]')?.content;
+        if (!title) return null;
+        const ingredients = this.findIngredientsList(doc);
+        if (!ingredients.length) return null;
+        const desc = doc.querySelector('meta[property="og:description"]')?.content;
+        return { name: title, description: desc, recipeIngredient: ingredients };
+    }
+
+    parseHTMLPatterns(doc) {
+        const ingredients = this.findIngredientsList(doc);
+        if (!ingredients.length) return null;
+        const instructions = this.findInstructionsList(doc);
+        const title = doc.querySelector('h1')?.textContent.trim() || doc.title;
+        return { name: title, recipeIngredient: ingredients, recipeInstructions: instructions };
+    }
+
+    findIngredientsList(doc) {
+        const selectors = [
+            '.recipe-ingredients li',
+            '.ingredients li',
+            '[class*="ingredient"] li',
+            'ul[class*="ingredient"] li'
+        ];
+        for (const sel of selectors) {
+            const els = doc.querySelectorAll(sel);
+            if (els.length) return Array.from(els).map(el => el.textContent.trim());
+        }
+        return [];
+    }
+
+    findInstructionsList(doc) {
+        const selectors = [
+            '.recipe-instructions li',
+            '.instructions li',
+            '.recipe-method li',
+            '.method li'
+        ];
+        for (const sel of selectors) {
+            const els = doc.querySelectorAll(sel);
+            if (els.length) {
+                return Array.from(els).map((el, idx) => ({ '@type': 'HowToStep', name: `Step ${idx + 1}`, text: el.textContent.trim() }));
+            }
+        }
+        return [];
+    }
+
+    findRecipeObject(data) {
+        if (!data) return null;
+        if (Array.isArray(data)) {
+            for (const item of data) {
+                const found = this.findRecipeObject(item);
+                if (found) return found;
+            }
+            return null;
+        }
+        if (typeof data === 'object') {
+            if (data['@type'] === 'Recipe') return data;
+            if (data['@graph']) return this.findRecipeObject(data['@graph']);
+            for (const key of Object.keys(data)) {
+                const found = this.findRecipeObject(data[key]);
+                if (found) return found;
+            }
+        }
+        return null;
+    }
+
+    isValidRecipe(r) {
+        return r && r.recipeIngredient && r.recipeIngredient.length > 0;
+    }
+
+    normalizeInstructions(inst) {
+        if (!inst) return [];
+        if (Array.isArray(inst)) {
+            return inst.map((st, i) => typeof st === 'string' ? { '@type': 'HowToStep', name: `Step ${i + 1}`, text: st } : st);
+        }
+        if (typeof inst === 'string') {
+            return inst.split(/\n+/).map((t, i) => ({ '@type': 'HowToStep', name: `Step ${i + 1}`, text: t.trim() }));
+        }
+        return [];
+    }
+
+    normalizeRecipe(recipe, url) {
+        return {
+            name: recipe.name || '',
+            description: recipe.description || '',
+            prepTime: recipe.prepTime || '',
+            cookTime: recipe.cookTime || '',
+            recipeYield: recipe.recipeYield || '',
+            recipeIngredient: Array.isArray(recipe.recipeIngredient) ? recipe.recipeIngredient : [recipe.recipeIngredient],
+            recipeInstructions: this.normalizeInstructions(recipe.recipeInstructions),
+            url
+        };
+    }
+}
+
+
+function parseIngredientLine(line) {
+    // remove notes in parentheses and anything after a comma
+    let cleaned = line.replace(/\([^)]*\)/g, '').split(',')[0];
+    cleaned = cleaned.replace(/\s+-\s+|\s+–\s+/g, ' ');
+    const tokens = cleaned.trim().split(/\s+/);
+    const fractionMap = { '½':0.5, '¼':0.25, '¾':0.75, '⅓':1/3, '⅔':2/3, '⅛':0.125, '⅜':0.375, '⅝':0.625, '⅞':0.875 };
+    const units = ['g','gram','grams','kg','kilogram','kilograms','ml','l','litre','litres','tsp','teaspoon','teaspoons','tbsp','tablespoon','tablespoons','cup','cups','oz','ounce','ounces','lb','lbs','pound','pounds','pint','pints','quart','quarts','clove','cloves','can','cans'];
+
+    function parseNumber(tok) {
+        if (fractionMap[tok]) return fractionMap[tok];
+        if (/^\d+\/\d+$/.test(tok)) { const [n,d]=tok.split('/').map(Number); return n/d; }
+        if (/^\d+(?:\.\d+)?-\d+(?:\.\d+)?$/.test(tok)) {
+            const [a,b] = tok.split('-').map(parseFloat);
+            return (a+b)/2; // use average for ranges
+        }
+        if (/^\d+\.\d+$/.test(tok)) return parseFloat(tok);
+        if (/^\d+$/.test(tok)) return parseInt(tok,10);
+        const m = tok.match(/^(\d+)([½¼¾⅓⅔⅛⅜⅝⅞])$/);
+        if (m) return parseInt(m[1],10) + fractionMap[m[2]];
+        return null;
+    }
+
+    let amount = 0; let unit = ''; let i = 0;
+    while (i < tokens.length) {
+        if (tokens[i].toLowerCase() === 'x') { i++; continue; }
+        const cleanedToken = tokens[i].replace(/^[-+]/, '').replace(/[-+]$/, '');
+        const val = parseNumber(cleanedToken);
+        if (val == null) break;
+        amount += val;
+        i++;
+    }
+    if (i < tokens.length && units.includes(tokens[i].toLowerCase())) {
+        unit = tokens[i].toLowerCase();
+        i++;
+    }
+    const name = tokens.slice(i).join(' ').trim();
+    if (!amount) amount = 1;
     const converted = convertUStoUK(amount, unit);
-    return { name: name.trim(), amount: converted.amount, unit: converted.unit };
+    return { name, amount: converted.amount, unit: converted.unit };
 }
 
 function convertUStoUK(amount, unit) {
@@ -943,6 +1382,7 @@ function addNewIngredient() {
 window.showPage = showPage;
 window.openIngredientModal = openIngredientModal;
 window.openRecipeModal = openRecipeModal;
+window.editRecipe = editRecipe;
+window.deleteRecipe = deleteRecipe;
 window.toggleShoppingItem = toggleShoppingItem;
 window.removeShoppingItem = removeShoppingItem;
-window.receiveDelivered = receiveDelivered;
