@@ -472,7 +472,7 @@ function checkRecipeAvailability(recipe) {
 }
 
 function findIngredientByName(name) {
-    return appState.ingredients.find(ing => ing.name === name);
+    return appState.ingredients.find(ing => ing.name.toLowerCase() === name.toLowerCase());
 }
 
 // Modal Functions
@@ -523,10 +523,12 @@ function initializeModals() {
 function openIngredientModal(ingredientName) {
     const ingredient = findIngredientByName(ingredientName);
     if (!ingredient) return;
-    
+
     appState.currentEditingIngredient = ingredient;
-    
+
     document.getElementById('modalTitle').textContent = `Update ${ingredient.name}`;
+    document.getElementById('ingredientName').value = ingredient.name;
+    document.getElementById('ingredientCategory').value = ingredient.category;
     document.getElementById('currentAmount').value = ingredient.current_amount;
     document.getElementById('amountUnit').textContent = ingredient.unit;
     document.getElementById('lowTrigger').value = ingredient.low;
@@ -569,14 +571,18 @@ function updateStockLevel() {
 
 function saveIngredientUpdate() {
     if (!appState.currentEditingIngredient) return;
-    
+
     const newAmount = parseFloat(document.getElementById('currentAmount').value) || 0;
     const ingredient = appState.currentEditingIngredient;
+    const newName = document.getElementById('ingredientName').value.trim() || ingredient.name;
+    const newCategory = document.getElementById('ingredientCategory').value || ingredient.category;
     const lowVal = parseFloat(document.getElementById('lowTrigger').value) || ingredient.low;
     const mediumVal = parseFloat(document.getElementById('mediumTrigger').value) || ingredient.medium;
     const highVal = parseFloat(document.getElementById('highTrigger').value) || ingredient.high;
 
     ingredient.current_amount = newAmount;
+    ingredient.name = newName;
+    ingredient.category = newCategory;
     ingredient.low = lowVal;
     ingredient.medium = mediumVal;
     ingredient.high = highVal;
@@ -937,6 +943,22 @@ async function importRecipeFromUrl(url) {
 
         const ingredients = recipeData.recipeIngredient.map(parseIngredientLine);
 
+        // ensure all ingredients exist in inventory
+        ingredients.forEach(ing => {
+            if (!findIngredientByName(ing.name)) {
+                appState.ingredients.push({
+                    name: ing.name,
+                    category: 'Pantry',
+                    unit: ing.unit,
+                    low: 1,
+                    medium: 2,
+                    high: 4,
+                    current_level: 'low',
+                    current_amount: 0
+                });
+            }
+        });
+
         const recipe = {
             id: Date.now(),
             name: recipeData.name || 'Imported Recipe',
@@ -948,6 +970,7 @@ async function importRecipeFromUrl(url) {
 
         appState.recipes.push(recipe);
         saveState();
+        renderInventory();
         renderRecipes();
         alert('Recipe imported successfully!');
     } catch (err) {
@@ -957,13 +980,37 @@ async function importRecipeFromUrl(url) {
 }
 
 function parseIngredientLine(line) {
-    const match = line.match(/^(\d+[\/.]?\d*)?\s*(\w+)?\s*(.*)$/);
-    let amount = parseFloat(match?.[1]) || 1;
-    let unit = match?.[2] ? match[2].toLowerCase() : '';
-    let name = match?.[3] || line;
+    // remove notes in parentheses and anything after a comma
+    let cleaned = line.replace(/\([^)]*\)/g, '').split(',')[0].trim();
+    const tokens = cleaned.split(/\s+/);
+    const fractionMap = { '½':0.5, '¼':0.25, '¾':0.75, '⅓':1/3, '⅔':2/3, '⅛':0.125, '⅜':0.375, '⅝':0.625, '⅞':0.875 };
+    const units = ['g','gram','grams','kg','kilogram','kilograms','ml','l','litre','litres','tsp','teaspoon','tbsp','tablespoon','cup','cups','oz','ounce','ounces','lb','lbs','pound','pounds','pint','pints','quart','quarts'];
 
+    function parseNumber(tok) {
+        if (fractionMap[tok]) return fractionMap[tok];
+        if (/^\d+\/\d+$/.test(tok)) { const [n,d]=tok.split('/').map(Number); return n/d; }
+        if (/^\d+\.\d+$/.test(tok)) return parseFloat(tok);
+        if (/^\d+$/.test(tok)) return parseInt(tok,10);
+        const m = tok.match(/^(\d+)([½¼¾⅓⅔⅛⅜⅝⅞])$/);
+        if (m) return parseInt(m[1],10) + fractionMap[m[2]];
+        return null;
+    }
+
+    let amount = 0; let unit = ''; let i = 0;
+    while (i < tokens.length) {
+        const val = parseNumber(tokens[i]);
+        if (val == null) break;
+        amount += val;
+        i++;
+    }
+    if (i < tokens.length && units.includes(tokens[i].toLowerCase())) {
+        unit = tokens[i].toLowerCase();
+        i++;
+    }
+    const name = tokens.slice(i).join(' ').trim();
+    if (!amount) amount = 1;
     const converted = convertUStoUK(amount, unit);
-    return { name: name.trim(), amount: converted.amount, unit: converted.unit };
+    return { name, amount: converted.amount, unit: converted.unit };
 }
 
 function convertUStoUK(amount, unit) {
