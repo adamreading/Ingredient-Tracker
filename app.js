@@ -224,8 +224,16 @@ function loadState() {
     try {
         const data = JSON.parse(saved);
         if (data.ingredients) appState.ingredients = data.ingredients;
-        if (data.shoppingList) appState.shoppingList = data.shoppingList;
+        if (data.shoppingList) {
+            appState.shoppingList = data.shoppingList.map(item => ({
+                ...item,
+                qty: item.qty ?? item.amount ?? 1,
+                selectedUnit: item.selectedUnit ?? item.unit ?? ''
+            }));
+        }
         if (data.recipes) appState.recipes = data.recipes;
+        // ensure new properties persist
+        saveState();
     } catch (err) {
         console.warn('Failed to parse saved state', err);
     }
@@ -700,10 +708,19 @@ async function renderShoppingList() {
     
     let html = '';
     const allUnits = [...new Set(appState.ingredients.map(i => i.unit).filter(Boolean))];
+    let changed = false;
     for (const item of appState.shoppingList) {
         const ingredient = findIngredientByName(item.name);
-        const defaultUnit = item.selectedUnit || item.unit || ingredient?.unit || allUnits[0] || '';
-        const qty = item.qty ?? 1;
+        if (item.qty == null) {
+            item.qty = item.amount ?? 1;
+            changed = true;
+        }
+        if (!item.selectedUnit) {
+            item.selectedUnit = item.unit || ingredient?.unit || allUnits[0] || '';
+            changed = true;
+        }
+        const defaultUnit = item.selectedUnit;
+        const qty = item.qty;
         html += `
         <div class="shopping-item shopping-list-item ${item.completed ? 'completed' : ''}">
             <input type="checkbox" class="shopping-checkbox" data-item="${item.name}"
@@ -721,6 +738,7 @@ async function renderShoppingList() {
         </div>`;
     }
     shoppingContainer.innerHTML = html;
+    if (changed) saveState();
 
     shoppingContainer.querySelectorAll('select[data-id]').forEach(sel => {
         sel.addEventListener('change', e => {
@@ -732,7 +750,6 @@ async function renderShoppingList() {
             }
         });
     });
-
     shoppingContainer.querySelectorAll('input[data-qty]').forEach(inp => {
         inp.addEventListener('input', e => {
             const id = parseFloat(inp.dataset.qty);
