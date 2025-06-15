@@ -999,7 +999,6 @@ select.form-control {
   width: 70px;
 }
 
-
 .recipe-body {
   padding: var(--space-20);
 }
@@ -1081,6 +1080,7 @@ select.form-control {
   gap: var(--space-12);
   padding: var(--space-12);
   border-bottom: 1px solid var(--color-border);
+  flex-wrap: nowrap;
 }
 
 .shopping-item:last-child {
@@ -1113,6 +1113,26 @@ select.form-control {
 
 .shopping-item-remove:hover {
   background: rgba(var(--color-error-rgb), 0.1);
+}
+
+.shopping-item select,
+.shopping-item input[type="number"] {
+  width: 70px;
+  flex: 0 0 auto;
+}
+
+@media (max-width: 767px) {
+  .shopping-item {
+    flex-wrap: wrap;
+  }
+  .shopping-item select,
+  .shopping-item input[type="number"] {
+    width: 64px;
+    flex: 0 0 64px;
+  }
+  .shopping-item-text {
+    flex-basis: 100%;
+  }
 }
 
 /* Settings */

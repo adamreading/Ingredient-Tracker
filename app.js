@@ -260,7 +260,7 @@ const navLinks = document.querySelectorAll('.nav-link');
 const pages = document.querySelectorAll('.page');
 
 // Initialize App
-document.addEventListener('DOMContentLoaded', function() {
+function initializeApp() {
     loadState();
     initializeNavigation();
     updateDashboard();
@@ -273,7 +273,13 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeRecipeSelection();
     initializeRecipeEditing();
     initializeSettings();
-});
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeApp);
+} else {
+    initializeApp();
+}
 
 // Navigation
 function initializeNavigation() {
