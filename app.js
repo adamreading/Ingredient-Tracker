@@ -213,7 +213,6 @@ let appState = {
         }
     ],
     shoppingList: [],
-    purchases: [],
     currentEditingIngredient: null
 };
 
@@ -225,10 +224,17 @@ function loadState() {
     try {
         const data = JSON.parse(saved);
         if (data.ingredients) appState.ingredients = data.ingredients;
-        if (data.shoppingList) appState.shoppingList = data.shoppingList;
-        if (data.purchases) appState.purchases = data.purchases;
-        else if (data.orders) appState.purchases = data.orders; // backwards compat
+        if (data.shoppingList) {
+            appState.shoppingList = data.shoppingList.map(item => ({
+                id: item.id ?? Date.now() + Math.random(),
+                ...item,
+                qty: item.qty ?? item.amount ?? 1,
+                selectedUnit: item.selectedUnit ?? item.unit ?? ''
+            }));
+        }
         if (data.recipes) appState.recipes = data.recipes;
+        // ensure new properties persist
+        saveState();
     } catch (err) {
         console.warn('Failed to parse saved state', err);
     }
@@ -238,7 +244,6 @@ function saveState() {
     const data = {
         ingredients: appState.ingredients,
         shoppingList: appState.shoppingList,
-        purchases: appState.purchases,
         recipes: appState.recipes
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
@@ -260,6 +265,7 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeModals();
     initializeShoppingList();
     initializeRecipeImport();
+    initializeRecipeSelection();
     initializeSettings();
 });
 
@@ -395,11 +401,17 @@ function renderRecipes() {
     recipesList.innerHTML = recipesWithAvailability.map(recipe => `
         <div class="recipe-card" onclick="openRecipeModal(${recipe.id})">
             <div class="recipe-header">
-                <div class="recipe-title">${recipe.name}</div>
-                <div class="recipe-meta">
-                    <span>Prep: ${recipe.prep_time}</span>
-                    <span>Cook: ${recipe.cook_time}</span>
-                    <span>Serves: ${recipe.serves}</span>
+                <div>
+                    <div class="recipe-title">${recipe.name}</div>
+                    <div class="recipe-meta">
+                        <span>Prep: ${recipe.prep_time}</span>
+                        <span>Cook: ${recipe.cook_time}</span>
+                        <span>Serves: ${recipe.serves}</span>
+                    </div>
+                </div>
+                <div class="recipe-select" onclick="event.stopPropagation()">
+                    <input type="checkbox" class="recipe-check" data-id="${recipe.id}">
+                    <input type="number" min="1" value="1" class="recipe-qty" data-id="${recipe.id}">
                 </div>
             </div>
             <div class="recipe-body">
@@ -639,13 +651,11 @@ function addMissingIngredientsToShopping() {
 function initializeShoppingList() {
     const generateBtn = document.getElementById('generateShoppingList');
     const clearBtn = document.getElementById('clearCompleted');
-    const receiveBtn = document.getElementById('receiveDelivered');
     const addBtn = document.getElementById('addManualItem');
     const manualInput = document.getElementById('manualItem');
 
     generateBtn.addEventListener('click', generateShoppingListFromLowStock);
     clearBtn.addEventListener('click', clearCompletedItems);
-    receiveBtn.addEventListener('click', receiveDelivered);
     addBtn.addEventListener('click', addManualItem);
     
     manualInput.addEventListener('keypress', (e) => {
@@ -664,6 +674,8 @@ function generateShoppingListFromLowStock() {
                 name: item.name,
                 amount: item.medium - item.current_amount,
                 unit: item.unit,
+                qty: item.medium - item.current_amount,
+                selectedUnit: item.unit,
                 completed: false,
                 auto: true
             });
@@ -683,6 +695,8 @@ function addManualItem() {
     appState.shoppingList.push({
         id: Date.now(),
         name: itemName,
+        qty: 1,
+        selectedUnit: '',
         completed: false,
         auto: false
     });
@@ -702,9 +716,20 @@ async function renderShoppingList() {
     
     let html = '';
     const allUnits = [...new Set(appState.ingredients.map(i => i.unit).filter(Boolean))];
+    let changed = false;
     for (const item of appState.shoppingList) {
         const ingredient = findIngredientByName(item.name);
-        const defaultUnit = item.unit || ingredient?.unit || allUnits[0] || '';
+        if (item.qty == null) {
+            item.qty = item.amount ?? 1;
+            changed = true;
+        }
+        if (!item.selectedUnit) {
+            item.selectedUnit = item.unit || ingredient?.unit || allUnits[0] || '';
+            changed = true;
+        }
+        const defaultUnit = item.selectedUnit;
+        const qty = item.qty;
+        const inStock = ingredient ? `${ingredient.current_amount} ${ingredient.unit}` : '0';
         html += `
         <div class="shopping-item shopping-list-item ${item.completed ? 'completed' : ''}">
             <input type="checkbox" class="shopping-checkbox" data-item="${item.name}"
@@ -712,28 +737,36 @@ async function renderShoppingList() {
                    onchange="toggleShoppingItem(${item.id})">
             <div class="shopping-item-text">
                 <strong>${item.name}</strong>
+                <span class="text-secondary">(stock: ${inStock})</span>
                 ${item.amount ? `<div class="text-secondary">${item.amount} ${item.unit || ''}</div>` : ''}
             </div>
             <button class="shopping-item-remove" onclick="removeShoppingItem(${item.id})">✗</button>
-            <select data-item="${item.name}">
+            <select data-id="${item.id}">
                 ${allUnits.map(u => `<option value="${u}" ${u === defaultUnit ? 'selected' : ''}>${u}</option>`).join('')}
             </select>
-            <input type="number" min="0" step="0.1" value="1" data-qty="${item.name}">
-            <button data-add="${item.name}">Add purchased</button>
+            <input type="number" min="0" step="0.1" value="${qty}" data-qty="${item.id}">
         </div>`;
     }
     shoppingContainer.innerHTML = html;
+    if (changed) saveState();
 
-    // attach purchase handlers
-    shoppingContainer.querySelectorAll('[data-add]').forEach(btn => {
-        btn.addEventListener('click', e => {
-            const item = e.target.dataset.add;
-            const select = e.target.previousElementSibling.previousElementSibling;
-            const qtyInput = e.target.previousElementSibling;
-            const unit = select.value;
-            const qty = parseFloat(qtyInput.value) || 0;
-            if (qty > 0) {
-                appState.purchases.push({ item, unit, qty });
+    shoppingContainer.querySelectorAll('select[data-id]').forEach(sel => {
+        sel.addEventListener('change', e => {
+            const id = parseFloat(sel.dataset.id);
+            const item = appState.shoppingList.find(i => i.id === id);
+            if (item) {
+                item.selectedUnit = sel.value;
+                saveState();
+            }
+        });
+    });
+
+    shoppingContainer.querySelectorAll('input[data-qty]').forEach(inp => {
+        inp.addEventListener('input', e => {
+            const id = parseFloat(inp.dataset.qty);
+            const item = appState.shoppingList.find(i => i.id === id);
+            if (item) {
+                item.qty = parseFloat(inp.value) || 0;
                 saveState();
             }
         });
@@ -744,7 +777,15 @@ function toggleShoppingItem(id) {
     const item = appState.shoppingList.find(item => item.id === id);
     if (item) {
         item.completed = !item.completed;
+        if (item.completed) {
+            const qty = parseFloat(item.qty) || 0;
+            const unit = item.selectedUnit || item.unit;
+            if (qty > 0) {
+                addToInventory(item.name, qty, unit);
+            }
+        }
         renderShoppingList();
+        renderInventory();
         saveState();
     }
 }
@@ -761,36 +802,73 @@ function clearCompletedItems() {
     saveState();
 }
 
-function receiveDelivered() {
-    document.querySelectorAll('.shopping-list-item input[type=checkbox]:checked')
-        .forEach(cb => {
-            const itemName = cb.dataset.item;
-            const purchase = appState.purchases.find(o => o.item === itemName);
-            if (!purchase) return;
-            const ingredient = findIngredientByName(itemName);
-            const qty = purchase.qty;
-            if (ingredient) {
-                ingredient.current_amount = (ingredient.current_amount || 0) + qty;
-                if (ingredient.current_amount >= ingredient.high) ingredient.current_level = 'high';
-                else if (ingredient.current_amount >= ingredient.medium) ingredient.current_level = 'medium';
-                else ingredient.current_level = 'low';
+function addToInventory(name, qty, unit) {
+    const ingredient = findIngredientByName(name);
+    if (ingredient) {
+        ingredient.current_amount = (ingredient.current_amount || 0) + qty;
+        if (ingredient.current_amount >= ingredient.high) ingredient.current_level = 'high';
+        else if (ingredient.current_amount >= ingredient.medium) ingredient.current_level = 'medium';
+        else ingredient.current_level = 'low';
+    } else {
+        appState.ingredients.push({
+            name,
+            category: 'Pantry',
+            unit,
+            low: 1,
+            medium: 2,
+            high: 4,
+            current_level: 'high',
+            current_amount: qty
+        });
+    }
+}
+
+function addSelectedRecipesToShopping() {
+    const checks = document.querySelectorAll('.recipe-check:checked');
+    const needed = {};
+    checks.forEach(chk => {
+        const id = parseFloat(chk.dataset.id);
+        const qtyInput = document.querySelector(`.recipe-qty[data-id="${id}"]`);
+        const count = parseInt(qtyInput?.value) || 1;
+        const recipe = appState.recipes.find(r => r.id === id);
+        if (!recipe) return;
+        recipe.ingredients.forEach(ing => {
+            const amt = (ing.amount || 1) * count;
+            if (!needed[ing.name]) needed[ing.name] = { amount: 0, unit: ing.unit };
+            needed[ing.name].amount += amt;
+        });
+    });
+
+    Object.entries(needed).forEach(([name, info]) => {
+        const ingredient = findIngredientByName(name);
+        const have = ingredient?.current_amount || 0;
+        const missing = info.amount - have;
+        if (missing > 0) {
+            let existing = appState.shoppingList.find(i => i.name === name);
+            if (existing) {
+                existing.amount = (existing.amount || 0) + missing;
+                existing.qty = existing.amount;
+                existing.unit = existing.unit || info.unit;
+                existing.selectedUnit = existing.selectedUnit || info.unit;
             } else {
-                appState.ingredients.push({
-                    name: itemName,
-                    category: 'Pantry',
-                    unit: purchase.unit,
-                    low: 1,
-                    medium: 2,
-                    high: 4,
-                    current_level: 'high',
-                    current_amount: qty
+                appState.shoppingList.push({
+                    id: Date.now() + Math.random(),
+                    name,
+                    amount: missing,
+                    unit: info.unit,
+                    qty: missing,
+                    selectedUnit: info.unit,
+                    completed: false,
+                    auto: true
                 });
             }
-        });
-    saveState();
-    renderInventory();
+        }
+    });
+
     renderShoppingList();
+    saveState();
 }
+
 
 // Recipe Import Functions
 function initializeRecipeImport() {
@@ -804,6 +882,13 @@ function initializeRecipeImport() {
         importRecipeFromUrl(url);
         urlInput.value = '';
     });
+}
+
+function initializeRecipeSelection() {
+    const addBtn = document.getElementById('recipesToShopping');
+    if (addBtn) {
+        addBtn.addEventListener('click', addSelectedRecipesToShopping);
+    }
 }
 
 async function importRecipeFromUrl(url) {
@@ -945,4 +1030,3 @@ window.openIngredientModal = openIngredientModal;
 window.openRecipeModal = openRecipeModal;
 window.toggleShoppingItem = toggleShoppingItem;
 window.removeShoppingItem = removeShoppingItem;
-window.receiveDelivered = receiveDelivered;
