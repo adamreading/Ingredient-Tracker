@@ -784,7 +784,6 @@ async function renderShoppingList() {
             }
         });
     });
-
     shoppingContainer.querySelectorAll('input[data-qty]').forEach(inp => {
         inp.addEventListener('input', e => {
             const id = parseFloat(inp.dataset.qty);
@@ -1021,7 +1020,6 @@ function parseIngredientLine(line) {
     const tokens = cleaned.trim().split(/\s+/);
     const fractionMap = { '½':0.5, '¼':0.25, '¾':0.75, '⅓':1/3, '⅔':2/3, '⅛':0.125, '⅜':0.375, '⅝':0.625, '⅞':0.875 };
     const units = ['g','gram','grams','kg','kilogram','kilograms','ml','l','litre','litres','tsp','teaspoon','teaspoons','tbsp','tablespoon','tablespoons','cup','cups','oz','ounce','ounces','lb','lbs','pound','pounds','pint','pints','quart','quarts','clove','cloves','can','cans'];
-
     function parseNumber(tok) {
         if (fractionMap[tok]) return fractionMap[tok];
         if (/^\d+\/\d+$/.test(tok)) { const [n,d]=tok.split('/').map(Number); return n/d; }
