@@ -943,6 +943,9 @@ select.form-control {
 .recipe-header {
   padding: var(--space-20);
   border-bottom: 1px solid var(--color-card-border-inner);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
 }
 
 .recipe-title {
@@ -957,6 +960,43 @@ select.form-control {
   color: var(--color-text-secondary);
   font-size: var(--font-size-sm);
   flex-wrap: wrap;
+}
+
+.recipe-select {
+  display: flex;
+  gap: var(--space-8);
+  align-items: center;
+}
+
+.recipe-select input[type="number"] {
+  width: 48px;
+}
+
+.recipe-actions {
+  display: flex;
+  gap: var(--space-8);
+}
+
+.recipe-actions button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--color-error);
+}
+
+.recipe-actions button.edit {
+  color: var(--color-text);
+}
+
+.recipe-edit-row {
+  display: flex;
+  gap: var(--space-8);
+  margin-bottom: var(--space-8);
+  align-items: center;
+}
+
+.recipe-edit-row input[type="number"] {
+  width: 70px;
 }
 
 .recipe-body {
@@ -1040,6 +1080,7 @@ select.form-control {
   gap: var(--space-12);
   padding: var(--space-12);
   border-bottom: 1px solid var(--color-border);
+  flex-wrap: nowrap;
 }
 
 .shopping-item:last-child {
@@ -1072,6 +1113,26 @@ select.form-control {
 
 .shopping-item-remove:hover {
   background: rgba(var(--color-error-rgb), 0.1);
+}
+
+.shopping-item select,
+.shopping-item input[type="number"] {
+  width: 70px;
+  flex: 0 0 auto;
+}
+
+@media (max-width: 767px) {
+  .shopping-item {
+    flex-wrap: wrap;
+  }
+  .shopping-item select,
+  .shopping-item input[type="number"] {
+    width: 64px;
+    flex: 0 0 64px;
+  }
+  .shopping-item-text {
+    flex-basis: 100%;
+  }
 }
 
 /* Settings */
