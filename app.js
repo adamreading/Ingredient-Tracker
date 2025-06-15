@@ -920,22 +920,8 @@ async function importRecipeFromUrl(url) {
         if (!response.ok) throw new Error('Network response was not ok');
         const html = await response.text();
         const doc = new DOMParser().parseFromString(html, 'text/html');
-        const scripts = Array.from(doc.querySelectorAll('script[type="application/ld+json"]'));
-        let recipeData = null;
-        for (const script of scripts) {
-            try {
-                let data = JSON.parse(script.textContent);
-                if (Array.isArray(data)) data = data.find(d => d['@type'] === 'Recipe');
-                if (data && data['@graph']) data = data['@graph'].find(d => d['@type'] === 'Recipe');
-                if (data && data['@type'] === 'Recipe') {
-                    recipeData = data;
-                    break;
-                }
-            } catch (err) {
-                continue;
-            }
-        }
 
+        let recipeData = extractRecipeData(doc);
         if (!recipeData || !recipeData.recipeIngredient) {
             alert('Unable to parse recipe data from the provided URL.');
             return;
@@ -979,16 +965,68 @@ async function importRecipeFromUrl(url) {
     }
 }
 
+function extractRecipeData(doc) {
+    // attempt JSON-LD first
+    const scripts = Array.from(doc.querySelectorAll('script[type="application/ld+json"]'));
+    for (const script of scripts) {
+        try {
+            const data = JSON.parse(script.textContent);
+            const recipe = findRecipeObject(data);
+            if (recipe) return recipe;
+        } catch (_) {
+            continue;
+        }
+    }
+    // fallback to microdata
+    const recipeEl = doc.querySelector('[itemtype*="Recipe" i]');
+    if (recipeEl) {
+        const getProp = prop => recipeEl.querySelector(`[itemprop="${prop}"]`)?.textContent.trim() || '';
+        const ingredients = Array.from(recipeEl.querySelectorAll('[itemprop="recipeIngredient"]')).map(el => el.textContent.trim());
+        return {
+            name: getProp('name'),
+            prepTime: getProp('prepTime'),
+            cookTime: getProp('cookTime'),
+            recipeYield: getProp('recipeYield'),
+            recipeIngredient: ingredients
+        };
+    }
+    return null;
+}
+
+function findRecipeObject(data) {
+    if (!data) return null;
+    if (Array.isArray(data)) {
+        for (const item of data) {
+            const found = findRecipeObject(item);
+            if (found) return found;
+        }
+        return null;
+    }
+    if (typeof data === 'object') {
+        if (data['@type'] === 'Recipe') return data;
+        if (data['@graph']) return findRecipeObject(data['@graph']);
+        for (const key of Object.keys(data)) {
+            const found = findRecipeObject(data[key]);
+            if (found) return found;
+        }
+    }
+    return null;
+}
+
 function parseIngredientLine(line) {
     // remove notes in parentheses and anything after a comma
-    let cleaned = line.replace(/\([^)]*\)/g, '').split(',')[0].trim();
-    const tokens = cleaned.split(/\s+/);
+    let cleaned = line.replace(/\([^)]*\)/g, '').split(',')[0];
+    cleaned = cleaned.replace(/\s+-\s+|\s+–\s+/g, ' ');
+    const tokens = cleaned.trim().split(/\s+/);
     const fractionMap = { '½':0.5, '¼':0.25, '¾':0.75, '⅓':1/3, '⅔':2/3, '⅛':0.125, '⅜':0.375, '⅝':0.625, '⅞':0.875 };
-    const units = ['g','gram','grams','kg','kilogram','kilograms','ml','l','litre','litres','tsp','teaspoon','tbsp','tablespoon','cup','cups','oz','ounce','ounces','lb','lbs','pound','pounds','pint','pints','quart','quarts'];
-
+    const units = ['g','gram','grams','kg','kilogram','kilograms','ml','l','litre','litres','tsp','teaspoon','teaspoons','tbsp','tablespoon','tablespoons','cup','cups','oz','ounce','ounces','lb','lbs','pound','pounds','pint','pints','quart','quarts','clove','cloves','can','cans'];
     function parseNumber(tok) {
         if (fractionMap[tok]) return fractionMap[tok];
         if (/^\d+\/\d+$/.test(tok)) { const [n,d]=tok.split('/').map(Number); return n/d; }
+        if (/^\d+(?:\.\d+)?-\d+(?:\.\d+)?$/.test(tok)) {
+            const [a,b] = tok.split('-').map(parseFloat);
+            return (a+b)/2; // use average for ranges
+        }
         if (/^\d+\.\d+$/.test(tok)) return parseFloat(tok);
         if (/^\d+$/.test(tok)) return parseInt(tok,10);
         const m = tok.match(/^(\d+)([½¼¾⅓⅔⅛⅜⅝⅞])$/);
@@ -998,7 +1036,9 @@ function parseIngredientLine(line) {
 
     let amount = 0; let unit = ''; let i = 0;
     while (i < tokens.length) {
-        const val = parseNumber(tokens[i]);
+        if (tokens[i].toLowerCase() === 'x') { i++; continue; }
+        const cleanedToken = tokens[i].replace(/^[-+]/, '').replace(/[-+]$/, '');
+        const val = parseNumber(cleanedToken);
         if (val == null) break;
         amount += val;
         i++;
