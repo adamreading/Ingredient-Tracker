@@ -485,6 +485,9 @@ function initializeModals() {
     const decreaseBtn = document.getElementById('decreaseAmount');
     const increaseBtn = document.getElementById('increaseAmount');
     const amountInput = document.getElementById('currentAmount');
+    const lowInput = document.getElementById('lowTrigger');
+    const mediumInput = document.getElementById('mediumTrigger');
+    const highInput = document.getElementById('highTrigger');
     
     modalClose.addEventListener('click', closeIngredientModal);
     modalCancel.addEventListener('click', closeIngredientModal);
@@ -493,6 +496,9 @@ function initializeModals() {
     decreaseBtn.addEventListener('click', () => adjustAmount(-1));
     increaseBtn.addEventListener('click', () => adjustAmount(1));
     amountInput.addEventListener('input', updateStockLevel);
+    if (lowInput) lowInput.addEventListener('input', updateStockLevel);
+    if (mediumInput) mediumInput.addEventListener('input', updateStockLevel);
+    if (highInput) highInput.addEventListener('input', updateStockLevel);
     
     // Recipe Modal
     const recipeModal = document.getElementById('recipeModal');
@@ -523,7 +529,10 @@ function openIngredientModal(ingredientName) {
     document.getElementById('modalTitle').textContent = `Update ${ingredient.name}`;
     document.getElementById('currentAmount').value = ingredient.current_amount;
     document.getElementById('amountUnit').textContent = ingredient.unit;
-    
+    document.getElementById('lowTrigger').value = ingredient.low;
+    document.getElementById('mediumTrigger').value = ingredient.medium;
+    document.getElementById('highTrigger').value = ingredient.high;
+
     updateStockLevel();
     document.getElementById('ingredientModal').classList.add('active');
 }
@@ -543,15 +552,18 @@ function adjustAmount(change) {
 
 function updateStockLevel() {
     if (!appState.currentEditingIngredient) return;
-    
+
     const ingredient = appState.currentEditingIngredient;
     const currentAmount = parseFloat(document.getElementById('currentAmount').value) || 0;
-    
+    const lowVal = parseFloat(document.getElementById('lowTrigger').value) || ingredient.low;
+    const mediumVal = parseFloat(document.getElementById('mediumTrigger').value) || ingredient.medium;
+    const highVal = parseFloat(document.getElementById('highTrigger').value) || ingredient.high;
+
     let level = 'low';
-    if (currentAmount >= ingredient.high) level = 'high';
-    else if (currentAmount >= ingredient.medium) level = 'medium';
-    
-    const percentage = Math.min(100, (currentAmount / ingredient.high) * 100);
+    if (currentAmount >= highVal) level = 'high';
+    else if (currentAmount >= mediumVal) level = 'medium';
+
+    const percentage = Math.min(100, (currentAmount / highVal) * 100);
     document.getElementById('levelFill').style.width = `${percentage}%`;
 }
 
@@ -560,11 +572,17 @@ function saveIngredientUpdate() {
     
     const newAmount = parseFloat(document.getElementById('currentAmount').value) || 0;
     const ingredient = appState.currentEditingIngredient;
-    
+    const lowVal = parseFloat(document.getElementById('lowTrigger').value) || ingredient.low;
+    const mediumVal = parseFloat(document.getElementById('mediumTrigger').value) || ingredient.medium;
+    const highVal = parseFloat(document.getElementById('highTrigger').value) || ingredient.high;
+
     ingredient.current_amount = newAmount;
-    
-    if (newAmount >= ingredient.high) ingredient.current_level = 'high';
-    else if (newAmount >= ingredient.medium) ingredient.current_level = 'medium';
+    ingredient.low = lowVal;
+    ingredient.medium = mediumVal;
+    ingredient.high = highVal;
+
+    if (newAmount >= highVal) ingredient.current_level = 'high';
+    else if (newAmount >= mediumVal) ingredient.current_level = 'medium';
     else ingredient.current_level = 'low';
     
     closeIngredientModal();
