@@ -121,6 +121,9 @@
                 <div id="recipesList" class="recipes-grid">
                     <!-- Populated by JavaScript -->
                 </div>
+                <div class="shopping-actions mt-8">
+                    <button class="btn btn--primary" id="recipesToShopping">Check and Add to Shopping List</button>
+                </div>
             </div>
         </section>
 
@@ -132,7 +135,6 @@
                 <div class="shopping-actions">
                     <button class="btn btn--primary" id="generateShoppingList">Generate from Low Stock</button>
                     <button class="btn btn--secondary" id="clearCompleted">Clear Completed</button>
-                    <button class="btn" id="receiveDelivered">Receive delivered</button>
                 </div>
 
                 <div class="card mt-8">
@@ -221,6 +223,22 @@
             </div>
             <div class="modal-body">
                 <div class="form-group">
+                    <label class="form-label">Name</label>
+                    <input type="text" id="ingredientName" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Category</label>
+                    <select id="ingredientCategory" class="form-control">
+                        <option value="Meat & Fish">Meat & Fish</option>
+                        <option value="Vegetables">Vegetables</option>
+                        <option value="Pantry">Pantry</option>
+                        <option value="Dairy & Eggs">Dairy & Eggs</option>
+                        <option value="Herbs & Spices">Herbs & Spices</option>
+                        <option value="Canned Goods">Canned Goods</option>
+                        <option value="Frozen">Frozen</option>
+                    </select>
+                </div>
+                <div class="form-group">
                     <label class="form-label">Current Amount</label>
                     <div class="amount-controls">
                         <button class="btn btn--outline btn--sm" id="decreaseAmount">-</button>
@@ -228,6 +246,18 @@
                         <button class="btn btn--outline btn--sm" id="increaseAmount">+</button>
                     </div>
                     <div class="amount-unit" id="amountUnit"></div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Low Trigger</label>
+                    <input type="number" id="lowTrigger" class="form-control" step="0.1" min="0">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Medium Trigger</label>
+                    <input type="number" id="mediumTrigger" class="form-control" step="0.1" min="0">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">High Trigger</label>
+                    <input type="number" id="highTrigger" class="form-control" step="0.1" min="0">
                 </div>
                 <div class="stock-level-indicator">
                     <div class="level-bar">
