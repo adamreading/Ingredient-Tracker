@@ -1187,6 +1187,10 @@ select.form-control {
   background-color: rgba(0, 0, 0, 0.5);
 }
 
+#ingredientModal {
+  z-index: 1100;
+}
+
 .modal.active {
   display: flex;
   align-items: center;
