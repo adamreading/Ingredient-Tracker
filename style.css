@@ -943,6 +943,9 @@ select.form-control {
 .recipe-header {
   padding: var(--space-20);
   border-bottom: 1px solid var(--color-card-border-inner);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
 }
 
 .recipe-title {
@@ -957,6 +960,16 @@ select.form-control {
   color: var(--color-text-secondary);
   font-size: var(--font-size-sm);
   flex-wrap: wrap;
+}
+
+.recipe-select {
+  display: flex;
+  gap: var(--space-8);
+  align-items: center;
+}
+
+.recipe-select input[type="number"] {
+  width: 48px;
 }
 
 .recipe-body {
